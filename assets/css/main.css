@@ -1183,6 +1183,113 @@ p {
   overflow: hidden;
 }
 
+/* Results card and search box styles */
+.search-box {
+  background-color: #f5f6f7;
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+  align-items: center;
+}
+
+results-card {
+  max-width: 1400px;
+  width: calc(100% - 40px);
+  margin: 0 auto 30px auto;
+  padding: 24px;
+  background-color: #fafafa;
+  border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.results-card .table {
+  margin-bottom: 0;
+}
+
+.truncate {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* show up to 2 lines then ellipsis */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.2em;
+}
+
+/* Make table cells readable on small screens */
+@media (max-width: 768px) {
+  .truncate { max-width: 160px; }
+  .results-card { padding: 12px; }
+}
+
+/* Prevent table from reflowing when rows load: fixed layout and stable column widths */
+.results-card {
+  min-height: 180px; /* avoids vertical jump when loading */
+}
+
+.results-card .card-body {
+  overflow-x: auto; /* allow horizontal scroll if table exceeds card */
+}
+
+.results-card .table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+}
+
+.results-card th,
+.results-card td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal; /* allow wrapping by default */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+/* Assign stable column widths so columns don't resize when data arrives */
+.results-card th:nth-child(1){ width:7%; }
+.results-card th:nth-child(2){ width:8%; }
+.results-card th:nth-child(3){ width:6%; }
+.results-card th:nth-child(4){ width:6%; }
+.results-card th:nth-child(5){ width:10%; }
+.results-card th:nth-child(6){ width:22%; }
+.results-card th:nth-child(7){ width:7%; }
+.results-card th:nth-child(8){ width:7%; }
+.results-card th:nth-child(9){ width:4%; }
+.results-card th:nth-child(10){ width:4%; }
+.results-card th:nth-child(11){ width:12%; }
+.results-card th:nth-child(12){ width:6%; }
+.results-card th:nth-child(13){ width:4%; }
+.results-card th:nth-child(14){ width:4%; }
+.results-card th:nth-child(15){ width:4%; }
+
+/* Center the table header text vertically and make header slightly bolder */
+.results-card thead th { font-weight: 700; vertical-align: middle; }
+
+/* When there are no rows, keep the card visually stable */
+.results-card .text-center { padding: 28px 0; }
+
+/* Consulta section blue border */
+.consulta-border {
+  border: 3px solid #0d6efd; /* bootstrap primary blue */
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 6px 18px rgba(13,110,253,0.06);
+}
+
+/* Sticky search box so it's always visible when scrolling */
+.search-box-sticky {
+  position: sticky;
+  top: 100px; /* adjust if navbar height changes */
+  z-index: 1050;
+  background: #ffffff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+}
+
 .events-section::before {
   content: "";
   position: absolute;

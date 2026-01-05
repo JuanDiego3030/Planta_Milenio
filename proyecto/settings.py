@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 
+from pytz import UTC
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -78,9 +80,38 @@ WSGI_APPLICATION = 'proyecto.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'planta.sqlite3',  # Base de datos SQLite por defecto
+    },
+    'sqlserver': {
+        'ENGINE': 'mssql',
+        'NAME': 'agro_pru',
+        'USER': 'profit',
+        'PASSWORD': 'profit',
+        'HOST': 'agroserver', 
+        'PORT': '1433',        
+        'OPTIONS': {
+            'driver': 'FreeTDS',
+            'tds_version': '7.4',
+            'host_is_server': True,
+        },
+        'TIME_ZONE': 'UTC',
+    },
+    'ceres_romana': {
+        'ENGINE': 'mssql',
+        'NAME': 'ceres_romana',
+        'USER': 'profit',
+        'PASSWORD': 'profit',
+        'HOST': 'agroserver', 
+        'PORT': '1433',        
+        'OPTIONS': {
+            'driver': 'FreeTDS',
+            'tds_version': '7.4',
+            'host_is_server': True,
+        },
+        'TIME_ZONE': 'UTC',
     }
 }
+
 
 
 # Password validation
@@ -105,9 +136,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-ve'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Caracas'
 
 USE_I18N = True
 
@@ -132,3 +163,8 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Expiración de sesión por inactividad (15 minutos)
+SESSION_COOKIE_AGE = 900  # 15 minutos en segundos
+SESSION_SAVE_EVERY_REQUEST = True  # Renueva la sesión con cada petición
+
