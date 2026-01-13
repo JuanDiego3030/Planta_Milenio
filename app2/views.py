@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.db import connections
 from django.template.loader import render_to_string
 from django.http import HttpResponse
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import datetime
 
 
@@ -76,6 +77,28 @@ def control(request):
         vehiculo_placa = request.POST.get('vehiculo')
         vehiculo_remolque_placa = request.POST.get('vehiculo_remolque')
         destino_nombre = request.POST.get('destino')
+        reng_num = request.POST.get('reng_num')
+        co_art = request.POST.get('co_art')
+
+        # --- Obtener datos del producto/renglón seleccionado ---
+        producto_id = co_art or '1'
+        producto_codigo = co_art or '001'
+        producto_nombre = 'Producto genérico'
+        cantidad = 1
+        peso = 0
+        try:
+            with connections['sqlserver'].cursor() as cursor:
+                if reng_num and co_art:
+                    cursor.execute(
+                        "SELECT a.art_des, r.total_art FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
+                        [fact_num, reng_num, co_art]
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        producto_nombre = row[0] or producto_nombre
+                        cantidad = row[1] or 1
+        except Exception:
+            pass
 
         # --- Convertir fecha_orden a formato YYYY-MM-DD HH:MM:SS.mmm para SQL Server ---
         from datetime import datetime
@@ -92,9 +115,12 @@ def control(request):
                 except Exception:
                     continue
         if not fecha_orden_sql:
-            # Si no se pudo convertir, usar fecha y hora actual de Venezuela
             dt = datetime.now(venezuela_tz)
             fecha_orden_sql = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+        # --- NUEVO: obtener fecha/hora actual e IP para el registro de transporte ---
+        fecha_ingreso = datetime.now(venezuela_tz).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        ip_ingreso = request.META.get('REMOTE_ADDR', '')
 
         # --- Obtener datos completos de cada entidad desde ceres_romana ---
         empresa_id = 0
@@ -175,24 +201,17 @@ def control(request):
                     proveedor_id or '',
                     empresa_rif or '',
                     proveedor_nombre or '',
-                    producto_id or '1',
-                    producto_codigo or '001',
-                    producto_nombre or 'Producto genérico',
+                    producto_id,
+                    producto_codigo,
+                    producto_nombre,
                     cantidad if cantidad is not None else 1,
                     peso if peso is not None else 0,
                     fecha_orden_sql
                 ])
         except Exception as e:
-            # Si el error es "Ya este Codigo esta Registrado", mostrar mensaje amigable y no continuar
+            # Permitir registrar varias veces el mismo fact_num: ignora el error "Ya este Codigo esta Registrado"
             if "Ya este Codigo esta Registrado" in str(e):
-                error = f"La orden {fact_num} ya fue registrada previamente en Romana."
-                return render(request, 'control.html', {
-                    'registros': [],
-                    'fact_num': '',
-                    'message': message,
-                    'error': error,
-                    'empresas': empresas,
-                })
+                pass  # Ignorar y continuar con el flujo normal
             else:
                 error = f"Error al validar la orden (Orden_Profit_Insert): {str(e)}"
                 return render(request, 'control.html', {
@@ -223,7 +242,7 @@ def control(request):
                 cursor.execute("""
                     EXEC [dbo].[Orden_Profit_Transporte_Insert] %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 """, [
-                    orden_id,  # Orden_Id obtenido arriba
+                    orden_id,
                     fact_num,
                     producto_id,
                     producto_codigo,
@@ -242,30 +261,105 @@ def control(request):
                     destino_id,
                     destino_nombre
                 ])
-            # Solo usar messages.success, no sobrescribir message aquí
             messages.success(request, f"¡Registro exitoso! La orden {fact_num} fue registrada correctamente en Romana.")
         except Exception as e:
             error = f"Error al validar la orden (Orden_Profit_Transporte_Insert): {str(e)}"
+            return render(request, 'control.html', {
+                'registros': [],
+                'fact_num': '',
+                'message': message,
+                'error': error,
+                'empresas': empresas,
+            })
 
-        # Guardar en historial si hay placa y número de orden
+        # --- Guardar en historial si hay placa y número de orden ---
         try:
-            # Guardar en historial si hay placa y número de orden
+            pendiente_hist = None
+            try:
+                with connections['sqlserver'].cursor() as cursor:
+                    if reng_num and co_art:
+                        cursor.execute(
+                            "SELECT a.art_des, r.pendiente FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
+                            [fact_num, reng_num, co_art]
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT TOP 1 a.art_des, r.pendiente FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s",
+                            [fact_num]
+                        )
+                    row = cursor.fetchone()
+                    if row:
+                        producto_nombre_real = row[0] or producto_nombre
+                        pendiente_hist = row[1]
+                    else:
+                        producto_nombre_real = producto_nombre
+            except Exception:
+                producto_nombre_real = producto_nombre
+                pendiente_hist = None
             if vehiculo_placa and fact_num:
-                Historial.objects.create(
+                existe = Historial.objects.filter(
                     placa_vehiculo=vehiculo_placa,
-                    numero_orden=fact_num
-                )
+                    numero_orden=fact_num,
+                    descripcion=producto_nombre_real,
+                    pendiente=pendiente_hist
+                ).exists()
+                if not existe:
+                    Historial.objects.create(
+                        placa_vehiculo=vehiculo_placa,
+                        numero_orden=fact_num,
+                        descripcion=producto_nombre_real,
+                        pendiente=pendiente_hist
+                    )
         except Exception as e:
             error = f"Error al guardar en historial: {str(e)}"
+
+    # --- Historial de ingresos con paginación y filtros (esto debe ir antes de la consulta de órdenes) ---
+    page = request.GET.get('page', 1)
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
+
+    historial_qs = Historial.objects.all().order_by('-fecha_hora')
+    if fecha_inicio:
+        try:
+            fecha_inicio_dt = datetime.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            historial_qs = historial_qs.filter(fecha_hora__gte=fecha_inicio_dt)
+        except Exception:
+            pass
+    if fecha_fin:
+        try:
+            fecha_fin_dt = datetime.datetime.strptime(fecha_fin, "%Y-%m-%d") + datetime.timedelta(days=1)
+            historial_qs = historial_qs.filter(fecha_hora__lt=fecha_fin_dt)
+        except Exception:
+            pass
+
+    paginator = Paginator(historial_qs, 10)
+    try:
+        historial = paginator.page(page)
+    except PageNotAnInteger:
+        historial = paginator.page(1)
+    except EmptyPage:
+        historial = paginator.page(paginator.num_pages)
 
     # Consulta de órdenes (GET)
     raw = request.GET.get('fact_num', '').strip()
     if 'fact_num' not in request.GET:
+        # Siempre renderiza el historial aunque no haya búsqueda de orden
         return render(request, 'control.html', {
             'registros': [],
             'fact_num': '',
             'message': message,
             'error': error,
+            'empresas': empresas,
+            'status_cond': request.GET.get('status_cond', ''),
+            'historial': historial,
+            'historial_paginator': paginator,
+            'historial_page': historial.number,
+            'historial_has_previous': historial.has_previous(),
+            'historial_has_next': historial.has_next(),
+            'historial_previous_page_number': historial.previous_page_number() if historial.has_previous() else None,
+            'historial_next_page_number': historial.next_page_number() if historial.has_next() else None,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
         })
 
     vals = [v.strip() for v in raw.split(',') if v.strip()]
@@ -321,22 +415,50 @@ def control(request):
             cursor.execute(sql, params)
             cols = [c[0] for c in cursor.description] if cursor.description else []
             rows = cursor.fetchall()
+            # Pre-cargar historial en memoria para marcar registros por (numero_orden, placa_vehiculo, descripcion, pendiente)
+            historial_objs = Historial.objects.all()
+            historial_map = {}
+            for h in historial_objs:
+                key = (h.numero_orden, h.placa_vehiculo, h.descripcion)
+                if key not in historial_map or h.fecha_hora > historial_map[key].fecha_hora:
+                    historial_map[key] = h
             for row in rows:
                 reg = dict(zip(cols, row))
                 # Formatear los campos numéricos
                 for campo in ['total_art', 'uni_venta', 'pendiente']:
                     reg[campo] = format_number_backend(reg.get(campo))
-                # Agregar orden_id si existe
                 reg['orden_id'] = orden_id_map.get(str(reg.get('fact_num')))
+                placa = reg.get('vehiculo_placa') or reg.get('art_des') or ''
+                descripcion = reg.get('art_des') or reg.get('descrip') or ''
+                key = (reg.get('fact_num'), placa, descripcion)
+                hist = historial_map.get(key)
+                pendiente_actual = None
+                try:
+                    pendiente_actual = float(row[14])  # 'pendiente' es la columna 14
+                except Exception:
+                    pendiente_actual = None
+                ingreso_registrado = False
+                if hist:
+                    if (
+                        hist.pendiente is not None and pendiente_actual is not None and float(hist.pendiente) == float(pendiente_actual)
+                    ):
+                        ingreso_registrado = True
+                reg['ingreso_registrado'] = ingreso_registrado
+                reg['vehiculo_placa'] = placa
+                reg['descripcion'] = descripcion
+                reg['reng_num'] = reg.get('reng_num')
+                reg['co_art'] = reg.get('co_art')
+                reg['empresa_rif'] = reg.get('empresa_rif', '')  # o el valor real si lo tienes
+                reg['conductor'] = reg.get('conductor', '')
+                reg['vehiculo_placa'] = reg.get('vehiculo_placa', '')
+                reg['vehiculo_remolque_placa'] = reg.get('vehiculo_remolque_placa', '')
+                reg['destino_nombre'] = reg.get('destino_nombre', '')
                 registros.append(reg)
     except Exception as e:
         registros = []
         error = str(e)
 
     status_cond = request.GET.get('status_cond', '')
-
-    # Obtener historial de ingresos (ordenado por fecha descendente, últimos 30)
-    historial = Historial.objects.all().order_by('-fecha_hora')[:30]
 
     return render(request, 'control.html', {
         'registros': registros,
@@ -346,7 +468,14 @@ def control(request):
         'empresas': empresas,
         'status_cond': status_cond,
         'historial': historial,
-        # 'conductores': conductores,  # Eliminado porque ya no se usa
+        'historial_paginator': paginator,
+        'historial_page': historial.number,
+        'historial_has_previous': historial.has_previous(),
+        'historial_has_next': historial.has_next(),
+        'historial_previous_page_number': historial.previous_page_number() if historial.has_previous() else None,
+        'historial_next_page_number': historial.next_page_number() if historial.has_next() else None,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
     })
 
 def autocomplete_empresa(request):

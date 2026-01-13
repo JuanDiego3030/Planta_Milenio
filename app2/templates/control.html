@@ -84,12 +84,12 @@
                         <i class="fas fa-search"></i> Buscar
                     </button>
                 </div>
-                <div class="col-md-3 d-flex align-items-center">
+                <!--<div class="col-md-3 d-flex align-items-center">
                     <div class="form-check form-switch ms-2">
                         <input class="form-check-input" type="checkbox" id="statusCondSwitch" name="status_cond" value="1">
                         <label class="form-check-label" for="statusCondSwitch">Condicional de estatus</label>
                     </div>
-                </div>
+                </div>-->
               </form>
             </div>
 
@@ -125,12 +125,7 @@
                                 <div class="fw-bold">Orden: {{ group.grouper }}</div>
                                 {% with orden_id=first.orden_id %}
                                     <div class="small">
-                                        Orden en Romana:
-                                        {% if orden_id %}
-                                            {{ orden_id }}
-                                        {% else %}
-                                            <span class="text-warning">Orden no registrada</span>
-                                        {% endif %}
+                                            <!-- ...existing code... -->
                                     </div>
                                 {% endwith %}
                                 <div class="small">
@@ -145,12 +140,6 @@
                                         <span class="badge bg-light text-dark">{{ first.status }}</span>
                                     {% endif %}
                                 </div>
-                                <button type="button"
-                                    class="btn btn-cargar-datos mt-2 d-inline-flex align-items-center"
-                                    style="white-space: nowrap;"
-                                    onclick="handleCargarDatos('{{ first.status }}', 'validarModal{{ group.grouper }}')">
-                                    <i class="fa fa-check-circle me-2"></i>Cargar datos
-                                </button>
                             </div>
                         </div>
                         <div class="card-body p-0">
@@ -163,6 +152,7 @@
                                             <th class="text-end">Total</th>
                                             <th class="text-end">Uni Venta</th>
                                             <th class="text-end">Pendiente</th>
+                                            <th class="text-end">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -173,6 +163,22 @@
                                             <td class="text-end">{{ r.total_art|cut:"%" }}</td>
                                             <td class="text-end">{{ r.uni_venta|cut:"%" }}</td>
                                             <td class="text-end">{{ r.pendiente|cut:"%" }}</td>
+                                            <td>
+                                                {% if r.ingreso_registrado %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fa fa-check"></i>
+                                                        <span title="Datos cargados">&#x1F7E2;</span>
+                                                        Ingreso registrado
+                                                    </span>
+                                                {% else %}
+                                                    <button type="button"
+                                                        class="btn btn-cargar-datos d-inline-flex align-items-center"
+                                                        style="white-space: nowrap;"
+                                                        onclick="handleCargarDatos('{{ r.status }}', 'validarModal{{ group.grouper }}_{{ r.reng_num }}', '{{ r.descrip|escapejs }}')">
+                                                        <i class="fa fa-check-circle me-2"></i>Cargar datos
+                                                    </button>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -181,66 +187,65 @@
                         </div>
                     </div>
                     <!-- Modal -->
-                    <div class="modal fade" id="validarModal{{ group.grouper }}" tabindex="-1" aria-labelledby="validarModalLabel{{ group.grouper }}" aria-hidden="true">
+                    {% for r in group.list %}
+                    <div class="modal fade" id="validarModal{{ group.grouper }}_{{ r.reng_num }}" tabindex="-1" aria-labelledby="validarModalLabel{{ group.grouper }}_{{ r.reng_num }}" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header">
-                                    <h5 class="modal-title" id="validarModalLabel{{ group.grouper }}">Cargar datos de la Orden {{ group.grouper }}</h5>
+                                    <h5 class="modal-title" id="validarModalLabel{{ group.grouper }}_{{ r.reng_num }}">Cargar datos de la Orden {{ group.grouper }} - Producto {{ r.art_des }}</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                                 </div>
-                                <form method="post" action="" id="validarForm{{ group.grouper }}">
+                                <form method="post" action="" id="validarForm{{ group.grouper }}_{{ r.reng_num }}">
                                     {% csrf_token %}
                                     <div class="modal-body">
                                         <p>¿Desea cargar los datos de la orden <strong>{{ group.grouper }}</strong> del proveedor <strong>{{ first.prov_des }}</strong>?</p>
                                         <ul>
                                             <li><strong>Fecha:</strong> {{ first.fec_emis }}</li>
                                             <li><strong>Status:</strong> {{ first.status }}</li>
+                                            <li><strong>Producto:</strong> {{ r.art_des }}</li>
                                         </ul>
                                         <div class="mb-2">
                                             <label class="form-label">RIF de la Empresa de Transporte</label>
-                                            <input type="text" name="empresa_rif" class="form-control" id="empresaRifInput{{ group.grouper }}" autocomplete="off" required>
-                                            <div class="list-group position-absolute w-100" id="empresaRifList{{ group.grouper }}"></div>
+                                            <input type="text" name="empresa_rif" class="form-control" id="empresaRifInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required value="{{ r.empresa_rif|default_if_none:'' }}">
+                                            <div class="list-group position-absolute w-100" id="empresaRifList{{ group.grouper }}_{{ r.reng_num }}"></div>
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label">Cédula del Conductor</label>
-                                            <input type="text" name="conductor" class="form-control" id="conductorInput{{ group.grouper }}" autocomplete="off" required>
-                                            <div class="list-group position-absolute w-100" id="conductorList{{ group.grouper }}"></div>
+                                            <input type="text" name="conductor" class="form-control" id="conductorInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required value="{{ r.conductor|default_if_none:'' }}">
+                                            <div class="list-group position-absolute w-100" id="conductorList{{ group.grouper }}_{{ r.reng_num }}"></div>
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label">Placa del Vehículo</label>
-                                            <input type="text" name="vehiculo" class="form-control" id="vehiculoInput{{ group.grouper }}" autocomplete="off" required>
-                                            <div class="list-group position-absolute w-100" id="vehiculoList{{ group.grouper }}"></div>
+                                            <input type="text" name="vehiculo" class="form-control" id="vehiculoInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required value="{{ r.vehiculo_placa|default_if_none:'' }}">
+                                            <div class="list-group position-absolute w-100" id="vehiculoList{{ group.grouper }}_{{ r.reng_num }}"></div>
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label">Placa del Remolque</label>
-                                            <input type="text" name="vehiculo_remolque" class="form-control" id="remolqueInput{{ group.grouper }}" autocomplete="off">
-                                            <div class="list-group position-absolute w-100" id="remolqueList{{ group.grouper }}"></div>
+                                            <input type="text" name="vehiculo_remolque" class="form-control" id="remolqueInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" value="{{ r.vehiculo_remolque_placa|default_if_none:'' }}">
+                                            <div class="list-group position-absolute w-100" id="remolqueList{{ group.grouper }}_{{ r.reng_num }}"></div>
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label">Origen</label>
-                                            <input type="text" name="destino" class="form-control" id="destinoInput{{ group.grouper }}" autocomplete="off" required>
-                                            <div class="list-group position-absolute w-100" id="destinoList{{ group.grouper }}"></div>
+                                            <input type="text" name="destino" class="form-control" id="destinoInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required value="{{ r.destino_nombre|default_if_none:'' }}">
+                                            <div class="list-group position-absolute w-100" id="destinoList{{ group.grouper }}_{{ r.reng_num }}"></div>
                                         </div>
                                         <input type="hidden" name="validar_fact_num" value="{{ group.grouper }}">
                                         <input type="hidden" name="proveedor_id" value="{{ first.co_cli }}">
                                         <input type="hidden" name="proveedor_nombre" value="{{ first.prov_des }}">
                                         <input type="hidden" name="fecha_orden" value="{{ first.fec_emis }}">
                                         <input type="hidden" name="status" value="{{ first.status }}">
+                                        <input type="hidden" name="reng_num" value="{{ r.reng_num }}">
+                                        <input type="hidden" name="co_art" value="{{ r.co_art }}">
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                                         <button type="submit" class="btn btn-success">Confirmar carga</button>
                                     </div>
-                                <script>
-                                    function setEmpresaRif{{ group.grouper }}(select) {
-                                        var rif = select.options[select.selectedIndex].getAttribute('data-rif');
-                                        document.getElementById('empresaRifInput{{ group.grouper }}').value = rif;
-                                    }
-                                </script>
                                 </form>
                             </div>
                         </div>
                     </div>
+                    {% endfor %}
                     {% endwith %}
                 {% endfor %}
                 </div>
@@ -278,6 +283,23 @@
                     <i class="fas fa-history"></i> Historial de ingresos
                 </div>
                 <div class="card-body p-0">
+                    <!-- Filtros por fecha -->
+                    <form method="get" class="row g-2 p-3" style="max-width:600px;">
+                        <div class="col">
+                            <input type="date" class="form-control" name="fecha_inicio" value="{{ fecha_inicio|default_if_none:'' }}">
+                        </div>
+                        <div class="col">
+                            <input type="date" class="form-control" name="fecha_fin" value="{{ fecha_fin|default_if_none:'' }}">
+                        </div>
+                        <div class="col">
+                            <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+                        </div>
+                        {% if fecha_inicio or fecha_fin %}
+                        <div class="col">
+                            <a href="{% url 'control' %}" class="btn btn-outline-secondary">Limpiar</a>
+                        </div>
+                        {% endif %}
+                    </form>
                     <div class="table-responsive">
                         <table class="table table-striped mb-0">
                             <thead class="table-light">
@@ -285,6 +307,7 @@
                                     <th>Fecha y hora</th>
                                     <th>Número de orden</th>
                                     <th>Placa del vehículo</th>
+                                    <th>Descripción</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -294,16 +317,41 @@
                                         <td>{{ h.fecha_hora|date:"m/d/Y H:i:s" }}</td>
                                         <td>{{ h.numero_orden }}</td>
                                         <td>{{ h.placa_vehiculo }}</td>
+                                        <td>{{ h.descripcion }}</td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="3" class="text-center text-muted">No hay ingresos registrados.</td>
+                                        <td colspan="4" class="text-center text-muted">No hay ingresos registrados.</td>
                                     </tr>
                                 {% endif %}
                             </tbody>
                         </table>
                     </div>
+                    <!-- Paginación -->
+                    <nav aria-label="Historial paginación" class="mt-2">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if historial_has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ historial_previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">&laquo; Anterior</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&laquo; Anterior</span></li>
+                            {% endif %}
+                            <li class="page-item disabled">
+                                <span class="page-link">
+                                    Página {{ historial_page }} de {{ historial_paginator.num_pages }}
+                                </span>
+                            </li>
+                            {% if historial_has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ historial_next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">Siguiente &raquo;</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Siguiente &raquo;</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
                 </div>
             </div>
 
@@ -382,11 +430,9 @@ function showToast(message, type="info") {
 }
 
 // Botón cargar datos: si status==2 muestra toast, si no abre modal
-function handleCargarDatos(status, modalId) {
-    // Leer el valor actual del switch directamente del DOM
+function handleCargarDatos(status, modalId, descripcion) {
     var statusCond = document.getElementById('statusCondSwitch')?.checked ? '1' : '';
     if (statusCond === '1') {
-        // Permitir abrir el modal sin importar el status
         var modal = new bootstrap.Modal(document.getElementById(modalId));
         modal.show();
     } else {
@@ -397,6 +443,7 @@ function handleCargarDatos(status, modalId) {
             modal.show();
         }
     }
+    // Puedes usar 'descripcion' si necesitas mostrarla en el modal dinámicamente
 }
 
 // Reloj Venezuela en navbar
@@ -451,24 +498,52 @@ function setupAutocomplete(inputId, listId, url, displayFn, valueFn) {
     });
 }
 
-// Llama setupAutocomplete para cada campo
-{% if registros %}
-    {% regroup registros by fact_num as fact_groups %}
-    {% for group in fact_groups %}
-        setupAutocomplete('empresaRifInput{{ group.grouper }}', 'empresaRifList{{ group.grouper }}', '{% url "autocomplete_empresa" %}', 
-            function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
-        setupAutocomplete('conductorInput{{ group.grouper }}', 'conductorList{{ group.grouper }}', '{% url "autocomplete_conductor" %}', 
-            function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
-        setupAutocomplete('vehiculoInput{{ group.grouper }}', 'vehiculoList{{ group.grouper }}', '{% url "autocomplete_chuto" %}', 
-            function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-        setupAutocomplete('remolqueInput{{ group.grouper }}', 'remolqueList{{ group.grouper }}', '{% url "autocomplete_tanque" %}', 
-            function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-        setupAutocomplete('destinoInput{{ group.grouper }}', 'destinoList{{ group.grouper }}', '{% url "autocomplete_destino" %}', 
-            function(item) { return item.nombre; }, function(item) { return item.nombre; });
-    {% endfor %}
-{% endif %}
-</script>
-<script>
+// Llama setupAutocomplete para cada campo de cada registro/modal
+document.addEventListener('DOMContentLoaded', function() {
+    {% if registros %}
+        {% regroup registros by fact_num as fact_groups %}
+        {% for group in fact_groups %}
+            {% for r in group.list %}
+                setupAutocomplete(
+                    'empresaRifInput{{ group.grouper }}_{{ r.reng_num }}',
+                    'empresaRifList{{ group.grouper }}_{{ r.reng_num }}',
+                    '{% url "autocomplete_empresa" %}',
+                    function(item) { return item.rif + ' - ' + item.nombre; },
+                    function(item) { return item.rif; }
+                );
+                setupAutocomplete(
+                    'conductorInput{{ group.grouper }}_{{ r.reng_num }}',
+                    'conductorList{{ group.grouper }}_{{ r.reng_num }}',
+                    '{% url "autocomplete_conductor" %}',
+                    function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); },
+                    function(item) { return item.cedula; }
+                );
+                setupAutocomplete(
+                    'vehiculoInput{{ group.grouper }}_{{ r.reng_num }}',
+                    'vehiculoList{{ group.grouper }}_{{ r.reng_num }}',
+                    '{% url "autocomplete_chuto" %}',
+                    function(item) { return item.placa + ' - ' + item.nombre; },
+                    function(item) { return item.placa; }
+                );
+                setupAutocomplete(
+                    'remolqueInput{{ group.grouper }}_{{ r.reng_num }}',
+                    'remolqueList{{ group.grouper }}_{{ r.reng_num }}',
+                    '{% url "autocomplete_tanque" %}',
+                    function(item) { return item.placa + ' - ' + item.nombre; },
+                    function(item) { return item.placa; }
+                );
+                setupAutocomplete(
+                    'destinoInput{{ group.grouper }}_{{ r.reng_num }}',
+                    'destinoList{{ group.grouper }}_{{ r.reng_num }}',
+                    '{% url "autocomplete_destino" %}',
+                    function(item) { return item.nombre; },
+                    function(item) { return item.nombre; }
+                );
+            {% endfor %}
+        {% endfor %}
+    {% endif %}
+});
+
 // Limpiar el formulario de consulta sin recargar la página
 document.addEventListener('DOMContentLoaded', function() {
     var btnLimpiar = document.getElementById('btnLimpiar');
