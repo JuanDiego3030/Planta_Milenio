@@ -8,6 +8,9 @@ from django.template.loader import render_to_string
 from django.http import HttpResponse
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import datetime
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.views.decorators.cache import never_cache
 
 
 
@@ -41,6 +44,7 @@ def format_number_backend(value):
     except Exception:
         return value
 
+@never_cache
 def control(request):
     user_id = request.session.get('user_admin_id')
     if not user_id:
@@ -313,6 +317,12 @@ def control(request):
         except Exception as e:
             error = f"Error al guardar en historial: {str(e)}"
 
+        # --- REDIRECT después de procesar el formulario para evitar reenvío al recargar ---
+        # Puedes pasar fact_num como parámetro GET si quieres mostrar el resultado de la orden recién registrada
+        fact_num = request.POST.get('validar_fact_num', '')
+        # Puedes agregar más parámetros si lo necesitas
+        return HttpResponseRedirect(f"{reverse('control')}?fact_num={fact_num}")
+
     # --- Historial de ingresos con paginación y filtros (esto debe ir antes de la consulta de órdenes) ---
     page = request.GET.get('page', 1)
     fecha_inicio = request.GET.get('fecha_inicio', '')
@@ -428,7 +438,8 @@ def control(request):
                 for campo in ['total_art', 'uni_venta', 'pendiente']:
                     reg[campo] = format_number_backend(reg.get(campo))
                 reg['orden_id'] = orden_id_map.get(str(reg.get('fact_num')))
-                placa = reg.get('vehiculo_placa') or reg.get('art_des') or ''
+                # Solo asigna la placa si existe, nunca la descripción del producto
+                placa = reg.get('vehiculo_placa') or ''
                 descripcion = reg.get('art_des') or reg.get('descrip') or ''
                 key = (reg.get('fact_num'), placa, descripcion)
                 hist = historial_map.get(key)
@@ -444,13 +455,12 @@ def control(request):
                     ):
                         ingreso_registrado = True
                 reg['ingreso_registrado'] = ingreso_registrado
-                reg['vehiculo_placa'] = placa
+                reg['vehiculo_placa'] = placa  # <-- Solo la placa, nunca la descripción
                 reg['descripcion'] = descripcion
                 reg['reng_num'] = reg.get('reng_num')
                 reg['co_art'] = reg.get('co_art')
                 reg['empresa_rif'] = reg.get('empresa_rif', '')  # o el valor real si lo tienes
                 reg['conductor'] = reg.get('conductor', '')
-                reg['vehiculo_placa'] = reg.get('vehiculo_placa', '')
                 reg['vehiculo_remolque_placa'] = reg.get('vehiculo_remolque_placa', '')
                 reg['destino_nombre'] = reg.get('destino_nombre', '')
                 registros.append(reg)
@@ -477,6 +487,7 @@ def control(request):
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
     })
+
 
 def autocomplete_empresa(request):
     q = request.GET.get('q', '').strip()
