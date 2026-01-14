@@ -69,6 +69,11 @@ def control(request):
     except Exception as e:
         error = f"Error al cargar empresas: {str(e)}"
 
+    # Si el usuario es solo de consulta, bloquear registros por POST
+    if user.solo_consulta and request.method == 'POST' and request.POST.get('validar_fact_num'):
+        messages.error(request, 'No tiene permisos para registrar ingresos. Solo puede consultar y descargar el historial.')
+        return redirect('control')
+
     # Validación de orden por POST
     if request.method == 'POST' and request.POST.get('validar_fact_num'):
         fact_num = request.POST.get('validar_fact_num')

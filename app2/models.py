@@ -6,6 +6,7 @@ class User_admin(models.Model):
     bloqueado = models.BooleanField(default=False)
     email = models.EmailField(max_length=150, unique=True, null=True, blank=True)
     telefono = models.CharField(max_length=20, null=True, blank=True)
+    solo_consulta = models.BooleanField(default=False, help_text="Si está activo, el usuario solo puede consultar y descargar el historial, no registrar ingresos.")
 
     def __str__(self):
         return self.nombre

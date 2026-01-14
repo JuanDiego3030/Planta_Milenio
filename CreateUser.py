@@ -25,15 +25,24 @@ def registrar_usuario():
     if email and User_admin.objects.filter(email=email).exists():
         print(f"[ERROR] El email '{email}' ya está registrado.")
         return
+    # Permiso de solo consulta
+    while True:
+        solo_consulta_input = input("¿El usuario solo podrá consultar y descargar historial? (s/n): ").strip().lower()
+        if solo_consulta_input in ("s", "n"):
+            solo_consulta = solo_consulta_input == "s"
+            break
+        else:
+            print("[ERROR] Responda 's' para sí o 'n' para no.")
     hashed_password = make_password(password)
     user = User_admin(
         nombre=nombre,
         password=hashed_password,
         email=email if email else None,
-        telefono=telefono if telefono else None
+        telefono=telefono if telefono else None,
+        solo_consulta=solo_consulta
     )
     user.save()
-    print(f"[OK] Usuario '{nombre}' registrado correctamente.\n")
+    print(f"[OK] Usuario '{nombre}' registrado correctamente. Permiso solo consulta: {solo_consulta}\n")
 
 def cambiar_password():
     print("\n=== Cambiar contraseña de usuario ===")
@@ -58,9 +67,18 @@ def cambiar_password():
     if not new_password:
         print("[ERROR] La contraseña no puede estar vacía.")
         return
+    # Permitir cambiar el permiso solo_consulta
+    while True:
+        solo_consulta_input = input(f"¿El usuario '{user.nombre}' solo podrá consultar y descargar historial? (s/n, enter para dejar igual): ").strip().lower()
+        if solo_consulta_input in ("s", "n", ""):
+            if solo_consulta_input:
+                user.solo_consulta = solo_consulta_input == "s"
+            break
+        else:
+            print("[ERROR] Responda 's' para sí, 'n' para no, o enter para dejar igual.")
     user.password = make_password(new_password)
     user.save()
-    print(f"[OK] Contraseña actualizada para '{user.nombre}'.\n")
+    print(f"[OK] Contraseña y permiso actualizados para '{user.nombre}'. Permiso solo consulta: {user.solo_consulta}\n")
 
 def main():
     while True:
