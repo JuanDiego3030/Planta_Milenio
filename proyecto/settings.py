@@ -87,7 +87,7 @@ DATABASES = {
         'NAME': 'agro_pru',
         'USER': 'profit',
         'PASSWORD': 'profit',
-        'HOST': 'agroserver', 
+        'HOST': '10.10.1.1', 
         'PORT': '1433',        
         'OPTIONS': {
             'driver': 'FreeTDS',
@@ -101,7 +101,7 @@ DATABASES = {
         'NAME': 'ceres_romana',
         'USER': 'profit',
         'PASSWORD': 'profit',
-        'HOST': 'agroserver', 
+        'HOST': '10.10.1.1', 
         'PORT': '1433',        
         'OPTIONS': {
             'driver': 'FreeTDS',
