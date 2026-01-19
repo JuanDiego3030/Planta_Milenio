@@ -27,6 +27,7 @@
                 <th>Fecha y hora</th>
                 <th>Número de orden</th>
                 <th>Placa del vehículo</th>
+                <th>Descripción</th>
             </tr>
         </thead>
         <tbody>
@@ -35,10 +36,11 @@
                 <td>{{ h.fecha_hora|date:"d/m/Y H:i:s" }}</td>
                 <td>{{ h.numero_orden }}</td>
                 <td>{{ h.placa_vehiculo }}</td>
+                <td>{{ h.descripcion }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="3" style="text-align:center;">No hay ingresos registrados en este rango.</td>
+                <td colspan="4" style="text-align:center;">No hay ingresos registrados en este rango.</td>
             </tr>
             {% endfor %}
         </tbody>

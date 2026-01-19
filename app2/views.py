@@ -322,6 +322,7 @@ def control(request):
         # --- Guardar en historial si hay placa y número de orden ---
         try:
             pendiente_hist = None
+            producto_nombre_real = producto_nombre
             try:
                 with connections['sqlserver'].cursor() as cursor:
                     if reng_num and co_art:
@@ -338,21 +339,26 @@ def control(request):
                     if row:
                         producto_nombre_real = row[0] or producto_nombre
                         pendiente_hist = row[1]
-                    else:
-                        producto_nombre_real = producto_nombre
             except Exception:
-                producto_nombre_real = producto_nombre
-                pendiente_hist = None
-            if vehiculo_placa and fact_num:
+                pass
+            # Asegúrate de obtener la placa correctamente del POST
+            vehiculo_placa_hist = request.POST.get('vehiculo', '').strip()
+            if vehiculo_placa_hist and fact_num:
                 existe = Historial.objects.filter(
-                    placa_vehiculo=vehiculo_placa,
+                    placa_vehiculo=vehiculo_placa_hist,
                     numero_orden=fact_num,
-                    descripcion=producto_nombre_real,
-                    pendiente=pendiente_hist
-                ).exists()
-                if not existe:
+                    descripcion=producto_nombre_real
+                ).order_by('-fecha_hora').first()
+                # Solo guarda si no existe uno igual con el mismo pendiente
+                pendiente_hist_val = pendiente_hist
+                if pendiente_hist_val is not None:
+                    try:
+                        pendiente_hist_val = float(pendiente_hist_val)
+                    except Exception:
+                        pendiente_hist_val = pendiente_hist
+                if not existe or (existe and existe.pendiente != pendiente_hist_val):
                     Historial.objects.create(
-                        placa_vehiculo=vehiculo_placa,
+                        placa_vehiculo=vehiculo_placa_hist,
                         numero_orden=fact_num,
                         descripcion=producto_nombre_real,
                         pendiente=pendiente_hist

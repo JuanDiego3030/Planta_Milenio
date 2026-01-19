@@ -376,6 +376,40 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- PAGINACIÓN DEL HISTORIAL -->
+                    {% if historial_paginator.num_pages > 1 %}
+                    <nav aria-label="Historial paginación" class="mt-2">
+                        <ul class="pagination justify-content-end mb-0">
+                            {% if historial_has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ historial_previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Anterior">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                            {% endif %}
+                            {% for num in historial_paginator.page_range %}
+                                {% if num == historial_page %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num >= historial_page|add:'-2' and num <= historial_page|add:'2' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if historial_has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ historial_next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Siguiente">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
                 </div>
             </div>
 
