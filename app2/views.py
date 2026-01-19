@@ -90,11 +90,7 @@ def control(request):
         co_art = request.POST.get('co_art')
 
         # --- Obtener datos del producto/renglón seleccionado ---
-        producto_id = co_art or '1'
-        producto_codigo = co_art or '001'
-        producto_nombre = 'Producto genérico'
-        cantidad = 1
-        peso = 0
+
         try:
             with connections['sqlserver'].cursor() as cursor:
                 if reng_num and co_art:
@@ -191,45 +187,59 @@ def control(request):
             except Exception:
                 pass
 
-        # --- Datos de producto (ajusta según tu lógica) ---
-        # Se deben enviar valores válidos, no vacíos
-        producto_id = '1'
-        producto_codigo = '001'
+        # --- DATOS DE PRODUCTO: obtener SIEMPRE desde la base de datos el campo8 y el producto_id correspondiente del renglón seleccionado ---
+        producto_codigo = None
+        producto_id = None
         producto_nombre = 'Producto genérico'
         cantidad = 1
         peso = 0
+        campo8 = None
+        producto_id_db = None
+        # Buscar datos del producto/renglón seleccionado (obligatorio para identificar el producto exacto)
+        if reng_num and co_art:
+            try:
+                with connections['sqlserver'].cursor() as cursor:
+                    cursor.execute(
+                        "SELECT a.art_des, r.total_art, a.campo8 FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
+                        [fact_num, reng_num, co_art]
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        producto_nombre = row[0] or producto_nombre
+                        cantidad = row[1] or 1
+                        campo8 = row[2]
+            except Exception:
+                campo8 = None
+        # Si no se obtuvo campo8, intentar obtenerlo del POST (fallback)
+        if not campo8:
+            campo8 = request.POST.get('campo8')
+        # Buscar producto_id en ceres_romana usando campo8
+        if campo8:
+            try:
+                with connections['ceres_romana'].cursor() as cursor:
+                    cursor.execute("SELECT Producto_Id FROM PRODUCTO WHERE RTRIM(Producto_Codigo) = %s", [campo8.strip()])
+                    prod_row = cursor.fetchone()
+                    if prod_row:
+                        producto_id_db = prod_row[0]
+            except Exception:
+                producto_id_db = None
+        # Si no se obtuvo producto_id, intentar obtenerlo del POST (fallback)
+        if not producto_id_db:
+            producto_id_db = request.POST.get('producto_id')
+        producto_codigo = campo8
+        producto_id = producto_id_db
 
-        # --- Inserción en Orden_Profit_Insert (solo los 11 parámetros requeridos, sin OUTPUT) ---
-        try:
-            with connections['ceres_romana'].cursor() as cursor:
-                cursor.execute("""
-                    EXEC [dbo].[Orden_Profit_Insert] %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                """, [
-                    fact_num or '',
-                    status or 'A',
-                    proveedor_id or '',
-                    empresa_rif or '',
-                    proveedor_nombre or '',
-                    producto_id,
-                    producto_codigo,
-                    producto_nombre,
-                    cantidad if cantidad is not None else 1,
-                    peso if peso is not None else 0,
-                    fecha_orden_sql
-                ])
-        except Exception as e:
-            # Permitir registrar varias veces el mismo fact_num: ignora el error "Ya este Codigo esta Registrado"
-            if "Ya este Codigo esta Registrado" in str(e):
-                pass  # Ignorar y continuar con el flujo normal
-            else:
-                error = f"Error al validar la orden (Orden_Profit_Insert): {str(e)}"
-                return render(request, 'control.html', {
-                    'registros': [],
-                    'fact_num': '',
-                    'message': message,
-                    'error': error,
-                    'empresas': empresas,
-                })
+        # --- Validar que producto_id y producto_codigo existan antes de continuar ---
+        if not producto_id or not producto_codigo or not reng_num or not co_art:
+            error = "No se encontró el ID de producto, el código de producto (campo 8) o el renglón seleccionado. Debe seleccionar el producto específico de la orden para registrar."
+            return render(request, 'control.html', {
+                'registros': [],
+                'fact_num': '',
+                'message': message,
+                'error': error,
+                'empresas': empresas,
+            })
+        # Solo se registra el producto/renglón seleccionado
 
         # --- Obtener Orden_Id desde la tabla orden_profit ---
         orden_id = None
@@ -247,14 +257,42 @@ def control(request):
 
         # --- Inserción en Orden_Profit_Transporte_Insert ---
         try:
+            # Obtener campo8 y producto_id para el producto/renglón seleccionado
+            campo8 = None
+            producto_id_db = None
+            if reng_num and co_art:
+                try:
+                    with connections['sqlserver'].cursor() as cursor:
+                        cursor.execute(
+                            "SELECT a.campo8 FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
+                            [fact_num, reng_num, co_art]
+                        )
+                        row = cursor.fetchone()
+                        if row:
+                            campo8 = row[0]
+                except Exception:
+                    campo8 = None
+                if campo8:
+                    try:
+                        with connections['ceres_romana'].cursor() as cursor:
+                            cursor.execute("SELECT Producto_Id FROM PRODUCTO WHERE RTRIM(Producto_Codigo) = %s", [campo8.strip()])
+                            prod_row = cursor.fetchone()
+                            if prod_row:
+                                producto_id_db = prod_row[0]
+                    except Exception:
+                        producto_id_db = None
+            # Si no hay campo8 o producto_id_db, usar los valores por defecto
+            producto_codigo_final = campo8 if campo8 else producto_codigo
+            producto_id_final = producto_id_db if producto_id_db else producto_id
+
             with connections['ceres_romana'].cursor() as cursor:
                 cursor.execute("""
                     EXEC [dbo].[Orden_Profit_Transporte_Insert] %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 """, [
                     orden_id,
                     fact_num,
-                    producto_id,
-                    producto_codigo,
+                    producto_id_final,
+                    producto_codigo_final,
                     None,  # Pesada_Id
                     empresa_id,
                     empresa_rif,
@@ -389,7 +427,8 @@ def control(request):
     if len(vals) == 1:
         sql = """
         select h.fact_num, h.fec_emis, h.status, h.co_cli, p.prov_des, h.descrip, h.comentario as hcoment,
-               r.comentario as rcoment, r.reng_num, r.co_art, a.art_des, l.lin_des, r.total_art, r.uni_venta, r.pendiente
+               r.comentario as rcoment, r.reng_num, r.co_art, a.art_des, l.lin_des, r.total_art, r.uni_venta, r.pendiente,
+               a.campo8
         from reng_ord r
         left join ordenes h on h.fact_num=r.fact_num
         left join prov p on p.co_prov=h.co_cli
@@ -403,7 +442,8 @@ def control(request):
         placeholders = ','.join(['%s'] * len(vals))
         sql = f"""
         select h.fact_num, h.fec_emis, h.status, h.co_cli, p.prov_des, h.descrip, h.comentario as hcoment,
-               r.comentario as rcoment, r.reng_num, r.co_art, a.art_des, l.lin_des, r.total_art, r.uni_venta, r.pendiente
+               r.comentario as rcoment, r.reng_num, r.co_art, a.art_des, l.lin_des, r.total_art, r.uni_venta, r.pendiente,
+               a.campo8, p.Producto_Codigo, p.Producto_Nombre, p.Producto_Descripcion
         from reng_ord r
         left join ordenes h on h.fact_num=r.fact_num
         left join prov p on p.co_prov=h.co_cli
@@ -450,7 +490,7 @@ def control(request):
                 hist = historial_map.get(key)
                 pendiente_actual = None
                 try:
-                    pendiente_actual = float(row[14])  # 'pendiente' es la columna 14
+                    pendiente_actual = float(reg.get('pendiente')) if reg.get('pendiente') is not None else None
                 except Exception:
                     pendiente_actual = None
                 ingreso_registrado = False
@@ -464,6 +504,23 @@ def control(request):
                 reg['descripcion'] = descripcion
                 reg['reng_num'] = reg.get('reng_num')
                 reg['co_art'] = reg.get('co_art')
+                # Campo 8 como código de producto
+                reg['campo8'] = reg.get('campo8', '')
+
+                # Buscar Producto_Id en ceres_romana usando campo8
+                producto_id = None
+                campo8 = reg.get('campo8', '').strip() if reg.get('campo8') else ''
+                if campo8:
+                    try:
+                        with connections['ceres_romana'].cursor() as cursor:
+                            cursor.execute("SELECT Producto_Id FROM PRODUCTO WHERE RTRIM(Producto_Codigo) = %s", [campo8])
+                            prod_row = cursor.fetchone()
+                            if prod_row:
+                                producto_id = prod_row[0]
+                    except Exception:
+                        producto_id = None
+                reg['producto_id'] = producto_id
+
                 reg['empresa_rif'] = reg.get('empresa_rif', '')  # o el valor real si lo tienes
                 reg['conductor'] = reg.get('conductor', '')
                 reg['vehiculo_remolque_placa'] = reg.get('vehiculo_remolque_placa', '')

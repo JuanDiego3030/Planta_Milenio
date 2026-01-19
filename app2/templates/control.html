@@ -152,6 +152,8 @@
                                             <th class="text-end">Total</th>
                                             <th class="text-end">Uni Venta</th>
                                             <th class="text-end">Pendiente</th>
+                                            <th class="text-end">Código de producto</th>
+                                            <th class="text-end">ID Producto</th>
                                             <th class="text-end">Acciones</th>
                                         </tr>
                                     </thead>
@@ -163,6 +165,8 @@
                                             <td class="text-end">{{ r.total_art|cut:"%" }}</td>
                                             <td class="text-end">{{ r.uni_venta|cut:"%" }}</td>
                                             <td class="text-end">{{ r.pendiente|cut:"%" }}</td>
+                                            <td class="text-end">{{ r.campo8 }}</td>
+                                            <td class="text-end">{{ r.producto_id }}</td>
                                             <td>
                                                 {% if r.ingreso_registrado %}
                                                     <span class="badge bg-success"><i class="fa fa-check"></i> Ingreso registrado</span>
@@ -170,12 +174,74 @@
                                                     <button type="button"
                                                         class="btn btn-cargar-datos d-inline-flex align-items-center"
                                                         style="white-space: nowrap;"
-                                                        onclick="handleCargarDatos('{{ r.status }}', 'validarModal{{ group.grouper }}', '{{ r.descrip|escapejs }}')">
+                                                        onclick="handleCargarDatos('{{ r.status }}', 'validarModal{{ group.grouper }}_{{ r.reng_num }}', '{{ r.art_des|default:r.descrip|escapejs }}', '{{ r.pendiente|cut:"%" }}')">
                                                         <i class="fa fa-check-circle me-2"></i>Cargar datos
                                                     </button>
                                                 {% endif %}
                                             </td>
                                         </tr>
+
+                                        <!-- Modal específico para cada renglón -->
+                                        <div class="modal fade" id="validarModal{{ group.grouper }}_{{ r.reng_num }}" tabindex="-1" aria-labelledby="validarModalLabel{{ group.grouper }}_{{ r.reng_num }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="validarModalLabel{{ group.grouper }}_{{ r.reng_num }}">Cargar datos de la Orden {{ group.grouper }}</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                                    </div>
+                                                    <form method="post" action="" id="validarForm{{ group.grouper }}_{{ r.reng_num }}">
+                                                        {% csrf_token %}
+                                                        <div class="modal-body">
+                                                            <p>¿Desea cargar los datos de la orden <strong>{{ group.grouper }}</strong> del proveedor <strong>{{ first.prov_des }}</strong>?</p>
+                                                            <ul>
+                                                                <li><strong>Fecha:</strong> {{ first.fec_emis }}</li>
+                                                                <li><strong>Status:</strong> {{ first.status }}</li>
+                                                                <li><strong>Producto:</strong> {{ r.art_des|default:r.descrip }}</li>
+                                                            </ul>
+                                                            <div class="mb-2">
+                                                                <label class="form-label">RIF de la Empresa de Transporte</label>
+                                                                <input type="text" name="empresa_rif" class="form-control" id="empresaRifInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required>
+                                                                <div class="list-group position-absolute w-100" id="empresaRifList{{ group.grouper }}_{{ r.reng_num }}"></div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Cédula del Conductor</label>
+                                                                <input type="text" name="conductor" class="form-control" id="conductorInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required>
+                                                                <div class="list-group position-absolute w-100" id="conductorList{{ group.grouper }}_{{ r.reng_num }}"></div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Placa del Vehículo</label>
+                                                                <input type="text" name="vehiculo" class="form-control" id="vehiculoInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required>
+                                                                <div class="list-group position-absolute w-100" id="vehiculoList{{ group.grouper }}_{{ r.reng_num }}"></div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Placa del Remolque</label>
+                                                                <input type="text" name="vehiculo_remolque" class="form-control" id="remolqueInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off">
+                                                                <div class="list-group position-absolute w-100" id="remolqueList{{ group.grouper }}_{{ r.reng_num }}"></div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Origen</label>
+                                                                <input type="text" name="destino" class="form-control" id="destinoInput{{ group.grouper }}_{{ r.reng_num }}" autocomplete="off" required>
+                                                                <div class="list-group position-absolute w-100" id="destinoList{{ group.grouper }}_{{ r.reng_num }}"></div>
+                                                            </div>
+                                                            <input type="hidden" name="validar_fact_num" value="{{ group.grouper }}">
+                                                            <input type="hidden" name="proveedor_id" value="{{ first.co_cli }}">
+                                                            <input type="hidden" name="proveedor_nombre" value="{{ first.prov_des }}">
+                                                            <input type="hidden" name="fecha_orden" value="{{ first.fec_emis }}">
+                                                            <input type="hidden" name="status" value="{{ first.status }}">
+                                                            <input type="hidden" name="campo8" value="{{ r.campo8 }}">
+                                                            <input type="hidden" name="producto_id" value="{{ r.producto_id }}">
+                                                            <input type="hidden" name="reng_num" value="{{ r.reng_num }}">
+                                                            <input type="hidden" name="co_art" value="{{ r.co_art }}">
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                            <button type="submit" class="btn btn-success">Confirmar carga</button>
+                                                            <a href="http://10.10.2.3/romana" class="btn btn-outline-primary" target="_blank">Ir a registro</a>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -183,7 +249,7 @@
                         </div>
                     </div>
                     <!-- Modal -->
-                    <div class="modal fade" id="validarModal{{ group.grouper }}" tabindex="-1" aria-labelledby="validarModalLabel{{ group.grouper }}" aria-hidden="true">
+                      <div class="modal fade" id="validarModal{{ group.grouper }}" tabindex="-1" aria-labelledby="validarModalLabel{{ group.grouper }}" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header">
@@ -388,7 +454,18 @@ function showToast(message, type="info") {
 }
 
 // Botón cargar datos: si status==2 muestra toast, si no abre modal
-function handleCargarDatos(status, modalId, descripcion) {
+function handleCargarDatos(status, modalId, descripcion, pendiente) {
+    // Normalizar pendiente (puede venir con coma o punto)
+    var pendienteNum = 0;
+    if (typeof pendiente === 'string') {
+        pendienteNum = parseFloat(pendiente.replace(',', '.'));
+    } else {
+        pendienteNum = pendiente;
+    }
+    if (pendienteNum === 0) {
+        showToast("No se puede procesar este producto porque ya fue recibido (pendiente = 0).", "warning");
+        return;
+    }
     var statusCond = document.getElementById('statusCondSwitch')?.checked ? '1' : '';
     if (statusCond === '1') {
         var modal = new bootstrap.Modal(document.getElementById(modalId));
@@ -460,16 +537,18 @@ function setupAutocomplete(inputId, listId, url, displayFn, valueFn) {
 {% if registros %}
     {% regroup registros by fact_num as fact_groups %}
     {% for group in fact_groups %}
-        setupAutocomplete('empresaRifInput{{ group.grouper }}', 'empresaRifList{{ group.grouper }}', '{% url "autocomplete_empresa" %}', 
-            function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
-        setupAutocomplete('conductorInput{{ group.grouper }}', 'conductorList{{ group.grouper }}', '{% url "autocomplete_conductor" %}', 
-            function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
-        setupAutocomplete('vehiculoInput{{ group.grouper }}', 'vehiculoList{{ group.grouper }}', '{% url "autocomplete_chuto" %}', 
-            function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-        setupAutocomplete('remolqueInput{{ group.grouper }}', 'remolqueList{{ group.grouper }}', '{% url "autocomplete_tanque" %}', 
-            function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-        setupAutocomplete('destinoInput{{ group.grouper }}', 'destinoList{{ group.grouper }}', '{% url "autocomplete_destino" %}', 
-            function(item) { return item.nombre; }, function(item) { return item.nombre; });
+        {% for r in group.list %}
+            setupAutocomplete('empresaRifInput{{ group.grouper }}_{{ r.reng_num }}', 'empresaRifList{{ group.grouper }}_{{ r.reng_num }}', '{% url "autocomplete_empresa" %}', 
+                function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
+            setupAutocomplete('conductorInput{{ group.grouper }}_{{ r.reng_num }}', 'conductorList{{ group.grouper }}_{{ r.reng_num }}', '{% url "autocomplete_conductor" %}', 
+                function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
+            setupAutocomplete('vehiculoInput{{ group.grouper }}_{{ r.reng_num }}', 'vehiculoList{{ group.grouper }}_{{ r.reng_num }}', '{% url "autocomplete_chuto" %}', 
+                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+            setupAutocomplete('remolqueInput{{ group.grouper }}_{{ r.reng_num }}', 'remolqueList{{ group.grouper }}_{{ r.reng_num }}', '{% url "autocomplete_tanque" %}', 
+                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+            setupAutocomplete('destinoInput{{ group.grouper }}_{{ r.reng_num }}', 'destinoList{{ group.grouper }}_{{ r.reng_num }}', '{% url "autocomplete_destino" %}', 
+                function(item) { return item.nombre; }, function(item) { return item.nombre; });
+        {% endfor %}
     {% endfor %}
 {% endif %}
 </script>
