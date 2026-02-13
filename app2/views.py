@@ -17,12 +17,23 @@ def auditoria(request):
         messages.error(request, 'Usuario no encontrado')
         from django.shortcuts import redirect
         return redirect('login')
+    # Validar permiso de acceso a auditoría
+    if not user.permiso_auditoria:
+        from django.contrib import messages
+        messages.error(request, 'No tiene permiso para acceder a la auditoría.')
+        from django.shortcuts import redirect
+        return redirect('login')
     ctrl = ControlAuditoria()
     from django.contrib import messages
     error = None
     message = None
-    # Borrar registro por SQL directo
+    # Borrar registro por SQL directo (solo si no es solo consulta)
     if request.method == 'POST' and 'eliminar_registro' in request.POST:
+        if user.solo_consulta:
+            from django.contrib import messages
+            messages.error(request, 'No tiene permiso para eliminar registros en auditoría.')
+            from django.shortcuts import redirect
+            return redirect('auditoria')
         registro_id = request.POST.get('registro_id')
         if registro_id:
             try:
@@ -35,8 +46,13 @@ def auditoria(request):
             from django.shortcuts import redirect
             return redirect('auditoria')
 
-    # Editar registro por SQL directo
+    # Editar registro por SQL directo (solo si no es solo consulta)
     if request.method == 'POST' and 'editar_registro' in request.POST:
+        if user.solo_consulta:
+            from django.contrib import messages
+            messages.error(request, 'No tiene permiso para editar registros en auditoría.')
+            from django.shortcuts import redirect
+            return redirect('auditoria')
         registro_id = request.POST.get('registro_id')
         campos = {}
         for campo in request.POST:
@@ -86,10 +102,12 @@ def auditoria(request):
         'paginator': paginator,
         'page_obj': registros_pagina,
         'buscar': termino_busqueda,
+        'user_admin': user,
     })
 from .crud import ControlUsuarios
 # Vista para gestión de usuarios
-
+from django.views.decorators.cache import never_cache
+@never_cache
 def control_usuarios(request):
     user_id = request.session.get('user_admin_id')
     if not user_id:
@@ -105,66 +123,140 @@ def control_usuarios(request):
         messages.error(request, 'Usuario no encontrado')
         from django.shortcuts import redirect
         return redirect('login')
+    # Validar permiso de acceso a usuarios
+    if not user.permiso_usuarios:
+        from django.contrib import messages
+        messages.error(request, 'No tiene permiso para acceder a la gestión de usuarios.')
+        from django.shortcuts import redirect
+        return redirect('login')
     ctrl = ControlUsuarios()
     error = None
     message = None
-    # Crear usuario
-    if request.method == 'POST' and 'crear_usuario' in request.POST:
-        nombre = request.POST.get('nombre', '').strip()
-        password = request.POST.get('password', '').strip()
-        email = request.POST.get('email', '').strip()
-        telefono = request.POST.get('telefono', '').strip()
-        solo_consulta = bool(request.POST.get('solo_consulta'))
-        bloqueado = bool(request.POST.get('bloqueado'))
-        if not nombre or not password:
-            error = 'Nombre y contraseña son obligatorios.'
-        else:
-            try:
-                ctrl.crear_usuario(nombre, password, email, telefono, solo_consulta, bloqueado)
-                message = 'Usuario creado correctamente.'
-            except Exception as e:
-                error = f'Error al crear usuario: {str(e)}'
-    # Editar usuario
-    if request.method == 'POST' and 'editar_usuario' in request.POST:
-        usuario_id = request.POST.get('usuario_id')
-        nombre = request.POST.get('nombre', '').strip()
-        password = request.POST.get('password', '').strip()
-        email = request.POST.get('email', '').strip()
-        telefono = request.POST.get('telefono', '').strip()
-        solo_consulta = bool(request.POST.get('solo_consulta'))
-        bloqueado = bool(request.POST.get('bloqueado'))
-        if not usuario_id:
-            error = 'ID de usuario requerido.'
-        else:
-            try:
-                update_data = {'nombre': nombre, 'email': email, 'telefono': telefono, 'solo_consulta': solo_consulta, 'bloqueado': bloqueado}
-                if password:
-                    update_data['password'] = password
-                ctrl.actualizar_usuario(usuario_id, **update_data)
-                message = 'Usuario actualizado correctamente.'
-            except Exception as e:
-                error = f'Error al actualizar usuario: {str(e)}'
-    # Eliminar usuario
-    if request.method == 'POST' and 'eliminar_usuario' in request.POST:
-        usuario_id = request.POST.get('usuario_id')
-        if not usuario_id:
-            error = 'ID de usuario requerido.'
-        else:
-            try:
-                ctrl.eliminar_usuario(usuario_id)
-                message = 'Usuario eliminado correctamente.'
-            except Exception as e:
-                error = f'Error al eliminar usuario: {str(e)}'
-    usuarios = ctrl.listar_usuarios()
+    # Restringir acciones CRUD si solo_consulta está activo
+    if request.method == 'POST':
+        if user.solo_consulta:
+            from django.contrib import messages
+            messages.error(request, 'No tiene permisos para crear, editar o eliminar usuarios. Solo puede consultar.')
+            from django.shortcuts import redirect
+            return redirect('control_usuarios')
+        # Crear usuario
+        if 'crear_usuario' in request.POST:
+            nombre = request.POST.get('nombre', '').strip()
+            password = request.POST.get('password', '').strip()
+            email = request.POST.get('email', '').strip()
+            telefono = request.POST.get('telefono', '').strip()
+            solo_consulta = bool(request.POST.get('solo_consulta'))
+            bloqueado = bool(request.POST.get('bloqueado'))
+            # Permisos
+            permiso_control = request.POST.get('permiso_control') == '1'
+            permiso_control_personas = request.POST.get('permiso_control_personas') == '1'
+            permiso_reportes = request.POST.get('permiso_reportes') == '1'
+            permiso_auditoria = request.POST.get('permiso_auditoria') == '1'
+            permiso_usuarios = request.POST.get('permiso_usuarios') == '1'
+            if not nombre or not password:
+                error = 'Nombre y contraseña son obligatorios.'
+            else:
+                try:
+                    ctrl.crear_usuario(
+                        nombre, password, email, telefono, solo_consulta, bloqueado,
+                        permiso_control=permiso_control,
+                        permiso_control_personas=permiso_control_personas,
+                        permiso_reportes=permiso_reportes,
+                        permiso_auditoria=permiso_auditoria,
+                        permiso_usuarios=permiso_usuarios
+                    )
+                    message = 'Usuario creado correctamente.'
+                except Exception as e:
+                    error = f'Error al crear usuario: {str(e)}'
+        # Editar usuario
+        if 'editar_usuario' in request.POST:
+            usuario_id = request.POST.get('usuario_id')
+            nombre = request.POST.get('nombre', '').strip()
+            password = request.POST.get('password', '').strip()
+            email = request.POST.get('email', '').strip()
+            telefono = request.POST.get('telefono', '').strip()
+            solo_consulta = bool(request.POST.get('solo_consulta'))
+            bloqueado = bool(request.POST.get('bloqueado'))
+            permiso_control = request.POST.get('permiso_control') == '1'
+            permiso_control_personas = request.POST.get('permiso_control_personas') == '1'
+            permiso_reportes = request.POST.get('permiso_reportes') == '1'
+            permiso_auditoria = request.POST.get('permiso_auditoria') == '1'
+            permiso_usuarios = request.POST.get('permiso_usuarios') == '1'
+            if not usuario_id:
+                error = 'ID de usuario requerido.'
+            else:
+                try:
+                    update_data = {
+                        'nombre': nombre,
+                        'email': email,
+                        'telefono': telefono,
+                        'solo_consulta': solo_consulta,
+                        'bloqueado': bloqueado,
+                        'permiso_control': permiso_control,
+                        'permiso_control_personas': permiso_control_personas,
+                        'permiso_reportes': permiso_reportes,
+                        'permiso_auditoria': permiso_auditoria,
+                        'permiso_usuarios': permiso_usuarios,
+                    }
+                    if password:
+                        update_data['password'] = password
+                    ctrl.actualizar_usuario(usuario_id, **update_data)
+                    message = 'Usuario actualizado correctamente.'
+                except Exception as e:
+                    error = f'Error al actualizar usuario: {str(e)}'
+        # Eliminar usuario
+        if 'eliminar_usuario' in request.POST:
+            usuario_id = request.POST.get('usuario_id')
+            if not usuario_id:
+                error = 'ID de usuario requerido.'
+            else:
+                try:
+                    ctrl.eliminar_usuario(usuario_id)
+                    message = 'Usuario eliminado correctamente.'
+                except Exception as e:
+                    error = f'Error al eliminar usuario: {str(e)}'
+
+    # PAGINACIÓN
+    usuarios_qs = ctrl.listar_usuarios()
+    page = request.GET.get('page', 1)
+    from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+    paginator = Paginator(usuarios_qs, 10)
+    try:
+        usuarios = paginator.page(page)
+    except PageNotAnInteger:
+        usuarios = paginator.page(1)
+    except EmptyPage:
+        usuarios = paginator.page(paginator.num_pages)
+
     return render(request, 'control_usuarios.html', {
         'usuarios': usuarios,
         'error': error,
         'message': message,
+        'user_admin': user,
+        'paginator': paginator,
+        'page_obj': usuarios,
     })
 from weasyprint import HTML
 from django.template.loader import render_to_string
 def reporte_pdf_materia_prima(request):
     """Genera PDF de entradas de materia prima según filtros de fecha."""
+    user_id = request.session.get('user_admin_id')
+    if not user_id:
+        messages.error(request, 'Debe iniciar sesión primero')
+        return redirect('login')
+    try:
+        user = User_admin.objects.get(id=user_id)
+    except User_admin.DoesNotExist:
+        messages.error(request, 'Usuario no encontrado')
+        return redirect('login')
+    # Validar permiso de acceso a reportes (o control_personas si aplica)
+    if not user.permiso_reportes:
+        messages.error(request, 'No tiene permiso para acceder a la vista de reportes.')
+        return redirect('control')
+    # Solo_consulta: permitir acceso a la vista y buscador, solo bloquear POST
+    if request.method == 'POST' and user.solo_consulta:
+        messages.error(request, 'No tiene permisos para registrar o modificar accesos de personas. Solo puede consultar.')
+        return redirect('control_personas')
     fecha_inicio = request.GET.get('fecha_inicio', '')
     fecha_fin = request.GET.get('fecha_fin', '')
     qs = Historial.objects.all().order_by('-fecha_hora')
@@ -242,6 +334,12 @@ def reportes(request):
         messages.error(request, 'Usuario no encontrado')
         from django.shortcuts import redirect
         return redirect('login')
+    # Validar permiso de acceso a reportes
+    if not user.permiso_reportes:
+        from django.contrib import messages
+        messages.error(request, 'No tiene permiso para acceder a la vista de reportes.')
+        from django.shortcuts import redirect
+        return redirect('login')
     
     tipo = request.GET.get('tipo', 'materia_prima')  # 'materia_prima' o 'personal'
     fecha_inicio = request.GET.get('fecha_inicio', '')
@@ -307,6 +405,7 @@ def reportes(request):
         'error': error,
         'paginador': paginador,
         'pagina_actual': pagina_actual,
+        'user_admin': user,
     })
 
 @require_GET
@@ -419,6 +518,10 @@ def control(request):
     except User_admin.DoesNotExist:
         messages.error(request, 'Usuario no encontrado')
         return redirect('login')
+    # Validar permiso de acceso a control
+    if not user.permiso_control:
+        messages.error(request, 'No tiene permiso para acceder a la vista de control.')
+        return redirect('login')
 
     # --- Nueva lógica tipo index de app1 ---
     message = None
@@ -427,7 +530,7 @@ def control(request):
     # Consultar empresas y conductores
     empresas = ctrl.fetch_empresas()
 
-    # Si el usuario es solo de consulta, bloquear registros por POST
+    # Restringir acciones CRUD si solo_consulta está activo
     if user.solo_consulta and request.method == 'POST' and request.POST.get('validar_fact_num'):
         messages.error(request, 'No tiene permisos para registrar ingresos. Solo puede consultar y descargar el historial.')
         return redirect('control')
@@ -656,16 +759,17 @@ def control(request):
             'historial_next_page_number': historial.next_page_number() if historial.has_next() else None,
             'fecha_inicio': fecha_inicio,
             'fecha_fin': fecha_fin,
+            'user_admin': user,
         })
 
     vals = [v.strip() for v in raw.split(',') if v.strip()]
     if not vals:
         error = "Ingrese un fact_num válido."
-        return render(request, 'control.html', {'registros': [], 'fact_num': raw, 'message': message, 'error': error})
+        return render(request, 'control.html', {'registros': [], 'fact_num': raw, 'message': message, 'error': error, 'user_admin': user})
 
     if len(vals) > 1:
         error = "Solo puedes consultar o registrar una orden de compra a la vez."
-        return render(request, 'control.html', {'registros': [], 'fact_num': raw, 'message': message, 'error': error})
+        return render(request, 'control.html', {'registros': [], 'fact_num': raw, 'message': message, 'error': error, 'user_admin': user})
 
     if len(vals) == 1:
         sql = """
@@ -722,6 +826,7 @@ def control(request):
         'historial_next_page_number': historial.next_page_number() if historial.has_next() else None,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
+        'user_admin': user,
     })
 
 def autocomplete_empresa(request):
@@ -853,9 +958,24 @@ def control_personas(request):
         messages.error(request, 'Usuario no encontrado')
         from django.shortcuts import redirect
         return redirect('login')
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    # Validar permiso de acceso a control_personas
+    if not user.permiso_control_personas:
+        messages.error(request, 'No tiene permiso para acceder a la vista de control de personas.')
+        return redirect('login')
+    if user.solo_consulta:
+        messages.error(request, 'No tiene permisos para registrar o modificar accesos de personas. Solo puede consultar.')
+        return redirect('control_personas')
     from .crud import ControlDeMateriaPrima
     ctrl = ControlDeMateriaPrima()
     if request.method == 'POST':
+        # Solo permite registrar entradas/salidas si tiene permiso booleano
+        if not user.permiso_control_personas:
+            from django.contrib import messages
+            messages.error(request, 'No tiene permisos para registrar o modificar accesos de personas. Solo puede consultar.')
+            from django.shortcuts import redirect
+            return redirect('control_personas')
         salida_id = request.POST.get('salida_id')
         if salida_id:
             try:
@@ -893,21 +1013,20 @@ def control_personas(request):
             messages.error(request, f'Error al guardar entrada: {str(e)}')
         return redirect('control_personas')
 
-    # GET: mostrar últimas 100 entradas o filtrar por búsqueda
+
+    # Buscador: filtrar historial paginado
     buscar = request.GET.get('buscar', '').strip()
+    from django.db.models import Q
     if buscar:
-        from django.db.models import Q
-        entradas = AccesoPersona.objects.filter(
+        historial_qs = AccesoPersona.objects.filter(
             Q(nombre__icontains=buscar) |
             Q(apellido__icontains=buscar) |
             Q(cedula__icontains=buscar) |
             Q(placa_vehiculo__icontains=buscar)
-        ).order_by('-hora_entrada')[:100]
+        ).order_by('-hora_entrada')
     else:
-        entradas = ctrl.listar_accesos_persona(100)
-    # Historial de ingresos de personal (últimos 100, paginados de a 10)
+        historial_qs = AccesoPersona.objects.all().order_by('-hora_entrada')
     from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-    historial_qs = AccesoPersona.objects.all().order_by('-hora_entrada')
     historial_paginator = Paginator(historial_qs, 10)
     historial_page = request.GET.get('historial_page', 1)
     try:
@@ -921,7 +1040,6 @@ def control_personas(request):
         historial_page_num = historial_paginator.num_pages
 
     return render(request, 'control_personas.html', {
-        'entradas': entradas,
         'request': request,
         'historial': historial,
         'historial_paginator': historial_paginator,
@@ -930,5 +1048,6 @@ def control_personas(request):
         'historial_has_next': historial.has_next(),
         'historial_previous_page_number': historial.previous_page_number() if historial.has_previous() else None,
         'historial_next_page_number': historial.next_page_number() if historial.has_next() else None,
+        'user_admin': user,
     })
 

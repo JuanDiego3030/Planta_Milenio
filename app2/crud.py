@@ -52,14 +52,20 @@ class ControlAuditoria:
 from .models import User_admin
 # --- CRUD para usuarios ---
 class ControlUsuarios:
-    def crear_usuario(self, nombre, password, email=None, telefono=None, solo_consulta=False, bloqueado=False):
+    def crear_usuario(self, nombre, password, email=None, telefono=None, solo_consulta=False, bloqueado=False,
+                      permiso_control=False, permiso_control_personas=False, permiso_reportes=False, permiso_auditoria=False, permiso_usuarios=False):
         return User_admin.objects.create(
             nombre=nombre,
             password=password,
             email=email,
             telefono=telefono,
             solo_consulta=solo_consulta,
-            bloqueado=bloqueado
+            bloqueado=bloqueado,
+            permiso_control=permiso_control,
+            permiso_control_personas=permiso_control_personas,
+            permiso_reportes=permiso_reportes,
+            permiso_auditoria=permiso_auditoria,
+            permiso_usuarios=permiso_usuarios
         )
 
     def listar_usuarios(self):

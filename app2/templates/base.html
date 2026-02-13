@@ -98,12 +98,23 @@
                 <div class="px-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'control' %}"><i class="fas fa-list me-2"></i>Control de entradas </a>
-                            <a class="nav-link" href="{% url 'control_personas' %}"><i class="fas fa-users me-2"></i>Control de personas </a>
-                            <a class="nav-link" href="{% url 'reportes' %}"><i class="fas fa-chart-bar me-2"></i>Reportes </a>
-                            <a class="nav-link" href="{% url 'control_usuarios' %}"><i class="fas fa-user-cog me-2"></i>Usuarios</a>
-                            <a class="nav-link" href="{% url 'auditoria' %}"><i class="fas fa-search me-2"></i>Auditoría</a>
-                                
+                            {% if user_admin %}
+                                {% if user_admin.permiso_control %}
+                                    <a class="nav-link" href="{% url 'control' %}"><i class="fas fa-list me-2"></i>Control de entradas </a>
+                                {% endif %}
+                                {% if user_admin.permiso_control_personas %}
+                                    <a class="nav-link" href="{% url 'control_personas' %}"><i class="fas fa-users me-2"></i>Control de personas </a>
+                                {% endif %}
+                                {% if user_admin.permiso_reportes %}
+                                    <a class="nav-link" href="{% url 'reportes' %}"><i class="fas fa-chart-bar me-2"></i>Reportes </a>
+                                {% endif %}
+                                {% if user_admin.permiso_usuarios %}
+                                    <a class="nav-link" href="{% url 'control_usuarios' %}"><i class="fas fa-user-cog me-2"></i>Usuarios</a>
+                                {% endif %}
+                                {% if user_admin.permiso_auditoria %}
+                                    <a class="nav-link" href="{% url 'auditoria' %}"><i class="fas fa-search me-2"></i>Auditoría</a>
+                                {% endif %}
+                            {% endif %}
                         </li>
                         <li class="nav-item">
                     </ul>

@@ -8,6 +8,13 @@ class User_admin(models.Model):
     telefono = models.CharField(max_length=20, null=True, blank=True)
     solo_consulta = models.BooleanField(default=False, help_text="Si está activo, el usuario solo puede consultar y descargar el historial, no registrar ingresos.")
 
+    # Permisos por vista (ahora booleanos)
+    permiso_control = models.BooleanField(default=False, help_text="Acceso a Control de entradas")
+    permiso_control_personas = models.BooleanField(default=False, help_text="Acceso a Control de personas")
+    permiso_reportes = models.BooleanField(default=False, help_text="Acceso a Reportes")
+    permiso_auditoria = models.BooleanField(default=False, help_text="Acceso a Auditoría")
+    permiso_usuarios = models.BooleanField(default=False, help_text="Acceso a Usuarios")
+
     def __str__(self):
         return self.nombre
 

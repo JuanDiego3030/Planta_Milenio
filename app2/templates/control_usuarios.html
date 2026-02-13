@@ -15,12 +15,6 @@
     <section class="section main-content">
       <div class="container">
         <h2 class="mb-4">Gestión de usuarios del sistema</h2>
-        {% if error %}
-          <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
-        {% if message %}
-          <div class="alert alert-success">{{ message }}</div>
-        {% endif %}
         <!-- Formulario para crear usuario -->
         <div class="card mb-4">
           <div class="card-body">
@@ -51,7 +45,38 @@
                 <label class="form-label">Bloqueado</label>
                 <input type="checkbox" name="bloqueado" class="form-check-input">
               </div>
-              <div class="col-md-2">
+              <!-- Permisos por vista -->
+              <div class="col-md-12 mt-2">
+                <label class="form-label">Permisos por vista:</label>
+                <div class="row g-2">
+                  <div class="col-md-2">
+                    <label class="small">Control</label><br>
+                    <input type="radio" name="permiso_control" value="1" class="form-check-input" id="permiso_control_si"> <label for="permiso_control_si" class="form-check-label">Sí</label>
+                    <input type="radio" name="permiso_control" value="0" class="form-check-input ms-2" id="permiso_control_no" checked> <label for="permiso_control_no" class="form-check-label">No</label>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="small">Personas</label><br>
+                    <input type="radio" name="permiso_control_personas" value="1" class="form-check-input" id="permiso_control_personas_si"> <label for="permiso_control_personas_si" class="form-check-label">Sí</label>
+                    <input type="radio" name="permiso_control_personas" value="0" class="form-check-input ms-2" id="permiso_control_personas_no" checked> <label for="permiso_control_personas_no" class="form-check-label">No</label>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="small">Reportes</label><br>
+                    <input type="radio" name="permiso_reportes" value="1" class="form-check-input" id="permiso_reportes_si"> <label for="permiso_reportes_si" class="form-check-label">Sí</label>
+                    <input type="radio" name="permiso_reportes" value="0" class="form-check-input ms-2" id="permiso_reportes_no" checked> <label for="permiso_reportes_no" class="form-check-label">No</label>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="small">Auditoría</label><br>
+                    <input type="radio" name="permiso_auditoria" value="1" class="form-check-input" id="permiso_auditoria_si"> <label for="permiso_auditoria_si" class="form-check-label">Sí</label>
+                    <input type="radio" name="permiso_auditoria" value="0" class="form-check-input ms-2" id="permiso_auditoria_no" checked> <label for="permiso_auditoria_no" class="form-check-label">No</label>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="small">Usuarios</label><br>
+                    <input type="radio" name="permiso_usuarios" value="1" class="form-check-input" id="permiso_usuarios_si"> <label for="permiso_usuarios_si" class="form-check-label">Sí</label>
+                    <input type="radio" name="permiso_usuarios" value="0" class="form-check-input ms-2" id="permiso_usuarios_no" checked> <label for="permiso_usuarios_no" class="form-check-label">No</label>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-2 mt-2">
                 <button type="submit" class="btn btn-primary w-100">Crear usuario</button>
               </div>
             </form>
@@ -78,27 +103,123 @@
                 <tbody>
                   {% for u in usuarios %}
                   <tr>
-                    <form method="post" action="">
-                      {% csrf_token %}
-                      <input type="hidden" name="usuario_id" value="{{ u.id }}">
-                      <td><input type="text" name="nombre" value="{{ u.nombre }}" class="form-control" required></td>
-                      <td><input type="email" name="email" value="{{ u.email }}" class="form-control"></td>
-                      <td><input type="text" name="telefono" value="{{ u.telefono }}" class="form-control"></td>
-                      <td><input type="checkbox" name="solo_consulta" class="form-check-input" {% if u.solo_consulta %}checked{% endif %}></td>
-                      <td><input type="checkbox" name="bloqueado" class="form-check-input" {% if u.bloqueado %}checked{% endif %}></td>
-                      <td>
-                        <input type="password" name="password" placeholder="Nueva contraseña" class="form-control mb-1">
-                        <button type="submit" name="editar_usuario" value="1" class="btn btn-sm btn-success mb-1">Guardar</button>
+                    <td>{{ u.nombre }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>{{ u.telefono }}</td>
+                    <td>{% if u.solo_consulta %}<span class="badge bg-info">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                    <td>{% if u.bloqueado %}<span class="badge bg-danger">Sí</span>{% else %}<span class="badge bg-success">No</span>{% endif %}</td>
+                    <td>
+                      <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario{{ u.id }}">Editar</button>
+                      <form method="post" action="" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="usuario_id" value="{{ u.id }}">
                         <button type="submit" name="eliminar_usuario" value="1" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar usuario?');">Eliminar</button>
-                      </td>
-                    </form>
+                      </form>
+                    </td>
                   </tr>
+                  <!-- Modal de edición -->
+                  <div class="modal fade" id="modalEditarUsuario{{ u.id }}" tabindex="-1" aria-labelledby="modalEditarUsuarioLabel{{ u.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <form method="post" action="">
+                          {% csrf_token %}
+                          <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="modalEditarUsuarioLabel{{ u.id }}">Editar usuario</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                          </div>
+                          <div class="modal-body">
+                            <div class="mb-2">
+                              <label class="form-label">Nombre</label>
+                              <input type="text" name="nombre" value="{{ u.nombre }}" class="form-control" required>
+                            </div>
+                            <div class="mb-2">
+                              <label class="form-label">Email</label>
+                              <input type="email" name="email" value="{{ u.email }}" class="form-control">
+                            </div>
+                            <div class="mb-2">
+                              <label class="form-label">Teléfono</label>
+                              <input type="text" name="telefono" value="{{ u.telefono }}" class="form-control">
+                            </div>
+                            <div class="mb-2">
+                              <label class="form-label">Nueva contraseña</label>
+                              <input type="password" name="password" placeholder="Nueva contraseña" class="form-control">
+                            </div>
+                            <div class="form-check mb-2">
+                              <input type="checkbox" name="solo_consulta" class="form-check-input" id="solo_consulta_{{ u.id }}" {% if u.solo_consulta %}checked{% endif %}>
+                              <label class="form-check-label" for="solo_consulta_{{ u.id }}">Solo consulta</label>
+                            </div>
+                            <div class="form-check mb-2">
+                              <input type="checkbox" name="bloqueado" class="form-check-input" id="bloqueado_{{ u.id }}" {% if u.bloqueado %}checked{% endif %}>
+                              <label class="form-check-label" for="bloqueado_{{ u.id }}">Bloqueado</label>
+                            </div>
+                            <div class="mb-2">
+                              <label class="form-label">Permisos por vista:</label>
+                              <div class="row g-2">
+                                <div class="col-md-6">
+                                  <label class="small">Control</label><br>
+                                  <input type="radio" name="permiso_control" value="1" class="form-check-input" id="permiso_control_si_{{ u.id }}" {% if u.permiso_control %}checked{% endif %}> <label for="permiso_control_si_{{ u.id }}" class="form-check-label">Sí</label>
+                                  <input type="radio" name="permiso_control" value="0" class="form-check-input ms-2" id="permiso_control_no_{{ u.id }}" {% if not u.permiso_control %}checked{% endif %}> <label for="permiso_control_no_{{ u.id }}" class="form-check-label">No</label>
+                                </div>
+                                <div class="col-md-6">
+                                  <label class="small">Personas</label><br>
+                                  <input type="radio" name="permiso_control_personas" value="1" class="form-check-input" id="permiso_control_personas_si_{{ u.id }}" {% if u.permiso_control_personas %}checked{% endif %}> <label for="permiso_control_personas_si_{{ u.id }}" class="form-check-label">Sí</label>
+                                  <input type="radio" name="permiso_control_personas" value="0" class="form-check-input ms-2" id="permiso_control_personas_no_{{ u.id }}" {% if not u.permiso_control_personas %}checked{% endif %}> <label for="permiso_control_personas_no_{{ u.id }}" class="form-check-label">No</label>
+                                </div>
+                                <div class="col-md-6">
+                                  <label class="small">Reportes</label><br>
+                                  <input type="radio" name="permiso_reportes" value="1" class="form-check-input" id="permiso_reportes_si_{{ u.id }}" {% if u.permiso_reportes %}checked{% endif %}> <label for="permiso_reportes_si_{{ u.id }}" class="form-check-label">Sí</label>
+                                  <input type="radio" name="permiso_reportes" value="0" class="form-check-input ms-2" id="permiso_reportes_no_{{ u.id }}" {% if not u.permiso_reportes %}checked{% endif %}> <label for="permiso_reportes_no_{{ u.id }}" class="form-check-label">No</label>
+                                </div>
+                                <div class="col-md-6">
+                                  <label class="small">Auditoría</label><br>
+                                  <input type="radio" name="permiso_auditoria" value="1" class="form-check-input" id="permiso_auditoria_si_{{ u.id }}" {% if u.permiso_auditoria %}checked{% endif %}> <label for="permiso_auditoria_si_{{ u.id }}" class="form-check-label">Sí</label>
+                                  <input type="radio" name="permiso_auditoria" value="0" class="form-check-input ms-2" id="permiso_auditoria_no_{{ u.id }}" {% if not u.permiso_auditoria %}checked{% endif %}> <label for="permiso_auditoria_no_{{ u.id }}" class="form-check-label">No</label>
+                                </div>
+                                <div class="col-md-6">
+                                  <label class="small">Usuarios</label><br>
+                                  <input type="radio" name="permiso_usuarios" value="1" class="form-check-input" id="permiso_usuarios_si_{{ u.id }}" {% if u.permiso_usuarios %}checked{% endif %}> <label for="permiso_usuarios_si_{{ u.id }}" class="form-check-label">Sí</label>
+                                  <input type="radio" name="permiso_usuarios" value="0" class="form-check-input ms-2" id="permiso_usuarios_no_{{ u.id }}" {% if not u.permiso_usuarios %}checked{% endif %}> <label for="permiso_usuarios_no_{{ u.id }}" class="form-check-label">No</label>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" name="editar_usuario" value="1" class="btn btn-success">Guardar cambios</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
                   {% empty %}
                   <tr><td colspan="6" class="text-center text-muted">No hay usuarios registrados.</td></tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
+            <!-- Paginación -->
+            <nav aria-label="Paginación de usuarios">
+              <ul class="pagination justify-content-center my-2">
+                {% if usuarios.has_previous %}
+                  <li class="page-item"><a class="page-link" href="?page={{ usuarios.previous_page_number }}">Anterior</a></li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                {% endif %}
+                {% for num in usuarios.paginator.page_range %}
+                  {% if usuarios.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                  {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                  {% endif %}
+                {% endfor %}
+                {% if usuarios.has_next %}
+                  <li class="page-item"><a class="page-link" href="?page={{ usuarios.next_page_number }}">Siguiente</a></li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                {% endif %}
+              </ul>
+            </nav>
           </div>
         </div>
     {% endblock %}
