@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Personal</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+        th, td { border: 1px solid #333; padding: 4px; text-align: left; }
+        th { background: #eee; }
+        h2 { margin-bottom: 0; }
+        .fecha { font-size: 11px; color: #555; }
+    </style>
+</head>
+<body>
+    <h2>Reporte de entradas y salidas de personal</h2>
+    <div class="fecha">
+        {% if fecha_inicio %}Desde: {{ fecha_inicio }}{% endif %}
+        {% if fecha_fin %} &nbsp; Hasta: {{ fecha_fin }}{% endif %}
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Cédula</th>
+                <th>Empresa</th>
+                <th>Motivo de ingreso</th>
+                <th>Placa</th>
+                <th>Hora entrada</th>
+                <th>Hora salida</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entradas %}
+            <tr>
+                <td>{{ e.nombre }}</td>
+                <td>{{ e.apellido }}</td>
+                <td>{{ e.cedula }}</td>
+                <td>{{ e.empresa|default_if_none:"" }}</td>
+                <td>{{ e.motivo_ingreso }}</td>
+                <td>{{ e.placa_vehiculo|default_if_none:"" }}</td>
+                <td>{{ e.hora_entrada|date:"Y-m-d H:i:s" }}</td>
+                <td>{% if e.hora_salida %}{{ e.hora_salida|date:"Y-m-d H:i:s" }}{% else %}-{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">No hay registros.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

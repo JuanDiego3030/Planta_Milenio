@@ -1,0 +1,211 @@
+    {% extends 'base.html' %}
+    {% load static %}
+
+    {% block title %}Control de acceso - Personas{% endblock %}
+
+    {% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <style>
+        .main-content { min-height: 60vh; }
+        .form-inline-row .form-control { min-width: 180px; }
+    </style>
+    {% endblock %}
+
+    {% block content %}
+    <section class="section main-content">
+      <div class="container">
+        <h2 class="mb-4">Control de acceso de personas</h2>
+
+
+
+        <div class="card mb-4">
+          <div class="card-body">
+            <form method="post" action="{% url 'control_personas' %}" class="row g-3 align-items-end">
+              {% csrf_token %}
+              <div class="col-md-3">
+                <label class="form-label">Nombre</label>
+                <input type="text" name="nombre" class="form-control" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Apellido</label>
+                <input type="text" name="apellido" class="form-control">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Cédula</label>
+                <input type="text" name="cedula" class="form-control" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Empresa</label>
+                <input type="text" name="empresa" class="form-control">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Motivo de ingreso</label>
+                <input type="text" name="motivo_ingreso" class="form-control" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Placa (opcional)</label>
+                <input type="text" name="placa" class="form-control">
+              </div>
+              <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Registrar entrada</button>
+              </div>
+            </form>
+          </div>
+        </div>
+                          <!-- Buscador de ingresos -->
+        <form method="get" action="" class="row g-3 align-items-end mb-3">
+          <div class="col-md-3">
+            <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre, apellido, cédula o placa" value="{{ request.GET.buscar|default:'' }}">
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100">Buscar</button>
+          </div>
+          <div class="col-md-2">
+            <a href="{% url 'control_personas' %}" class="btn btn-outline-secondary w-100">Limpiar</a>
+          </div>
+        </form>
+
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-history"></i> Historial de ingresos
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Fecha y hora</th>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>Cédula</th>
+                    <th>Empresa</th>
+                    <th>Motivo de ingreso</th>
+                    <th>Placa</th>
+                    <th>Hora salida</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if historial and historial|length > 0 %}
+                    {% for h in historial %}
+                    <tr>
+                      <td>{{ h.hora_entrada|date:"Y-m-d H:i:s" }}</td>
+                      <td>{{ h.nombre }}</td>
+                      <td>{{ h.apellido }}</td>
+                      <td>{{ h.cedula }}</td>
+                      <td>{{ h.empresa|default_if_none:"" }}</td>
+                      <td>{{ h.motivo_ingreso }}</td>
+                      <td>{{ h.placa_vehiculo|default_if_none:"" }}</td>
+                      <td>{% if h.hora_salida %}{{ h.hora_salida|date:"Y-m-d H:i:s" }}{% else %}-{% endif %}</td>
+                      <td>
+                        {% if not h.hora_salida %}
+                          <form method="post" action="{% url 'control_personas' %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="salida_id" value="{{ h.id }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Registrar salida</button>
+                          </form>
+                        {% else %}
+                          <span class="text-success">Salida registrada</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="9" class="text-center text-muted">No hay ingresos registrados.</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+            {% if historial_paginator.num_pages > 1 %}
+            <nav aria-label="Historial paginación" class="mt-2">
+              <ul class="pagination justify-content-end mb-0">
+                {% if historial_has_previous %}
+                  <li class="page-item">
+                    <a class="page-link" href="?historial_page={{ historial_previous_page_number }}">&laquo;</a>
+                  </li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                {% endif %}
+                {% for num in historial_paginator.page_range %}
+                  {% if num == historial_page %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                  {% elif num >= historial_page|add:'-2' and num <= historial_page|add:'2' %}
+                    <li class="page-item"><a class="page-link" href="?historial_page={{ num }}">{{ num }}</a></li>
+                  {% endif %}
+                {% endfor %}
+                {% if historial_has_next %}
+                  <li class="page-item">
+                    <a class="page-link" href="?historial_page={{ historial_next_page_number }}">&raquo;</a>
+                  </li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                {% endif %}
+              </ul>
+            </nav>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endblock %}
+
+    {% block extra_scripts %}
+    <script>
+    // Autocompletado para los campos de ingreso de personal
+    function setupAutocomplete(inputSelector, url) {
+      const input = document.querySelector(inputSelector);
+      if (!input) return;
+      const listId = inputSelector.replace('#', '') + '-list';
+      let list = document.getElementById(listId);
+      if (!list) {
+        list = document.createElement('div');
+        list.id = listId;
+        list.className = 'autocomplete-list list-group position-absolute w-100';
+        input.parentNode.appendChild(list);
+      }
+      input.setAttribute('autocomplete', 'off');
+      input.addEventListener('input', function() {
+        const q = input.value;
+        if (q.length < 1) {
+          list.innerHTML = '';
+          return;
+        }
+        fetch(url + '?q=' + encodeURIComponent(q))
+          .then(resp => resp.json())
+          .then(function(data) {
+            list.innerHTML = '';
+            data.forEach(function(item) {
+              const el = document.createElement('button');
+              el.type = 'button';
+              el.className = 'list-group-item list-group-item-action';
+              el.textContent = item;
+              el.onclick = function() {
+                input.value = item;
+                list.innerHTML = '';
+              };
+              list.appendChild(el);
+            });
+          });
+      });
+      document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !list.contains(e.target)) {
+          list.innerHTML = '';
+        }
+      });
+      input.parentNode.style.position = 'relative';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      setupAutocomplete('input[name="nombre"]', '/autocomplete/persona/nombre/');
+      setupAutocomplete('input[name="apellido"]', '/autocomplete/persona/apellido/');
+      setupAutocomplete('input[name="cedula"]', '/autocomplete/persona/cedula/');
+      setupAutocomplete('input[name="placa"]', '/autocomplete/persona/placa/');
+      setupAutocomplete('input[name="empresa"]', '/autocomplete/persona/empresa/');
+    });
+    </script>
+    {% endblock %}
+
+
+

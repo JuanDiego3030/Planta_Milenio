@@ -1,0 +1,163 @@
+    {% extends 'base.html' %}
+    {% load static %}
+
+    {% block title %}Control de acceso - Personas{% endblock %}
+
+    {% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <style>
+        .main-content { min-height: 60vh; }
+        .form-inline-row .form-control { min-width: 180px; }
+    </style>
+    {% endblock %}
+
+    {% block content %}
+    <section class="section main-content">
+      <div class="container">
+        <h2 class="mb-4">Gestión de usuarios del sistema</h2>
+        {% if error %}
+          <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        {% if message %}
+          <div class="alert alert-success">{{ message }}</div>
+        {% endif %}
+        <!-- Formulario para crear usuario -->
+        <div class="card mb-4">
+          <div class="card-body">
+            <form method="post" action="" class="row g-3 align-items-end">
+              {% csrf_token %}
+              <input type="hidden" name="crear_usuario" value="1">
+              <div class="col-md-3">
+                <label class="form-label">Nombre</label>
+                <input type="text" name="nombre" class="form-control" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Teléfono</label>
+                <input type="text" name="telefono" class="form-control">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Contraseña</label>
+                <input type="password" name="password" class="form-control" required>
+              </div>
+              <div class="col-md-1">
+                <label class="form-label">Solo consulta</label>
+                <input type="checkbox" name="solo_consulta" class="form-check-input">
+              </div>
+              <div class="col-md-1">
+                <label class="form-label">Bloqueado</label>
+                <input type="checkbox" name="bloqueado" class="form-check-input">
+              </div>
+              <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Crear usuario</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <!-- Tabla de usuarios -->
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-users"></i> Usuarios registrados
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Solo consulta</th>
+                    <th>Bloqueado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for u in usuarios %}
+                  <tr>
+                    <form method="post" action="">
+                      {% csrf_token %}
+                      <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                      <td><input type="text" name="nombre" value="{{ u.nombre }}" class="form-control" required></td>
+                      <td><input type="email" name="email" value="{{ u.email }}" class="form-control"></td>
+                      <td><input type="text" name="telefono" value="{{ u.telefono }}" class="form-control"></td>
+                      <td><input type="checkbox" name="solo_consulta" class="form-check-input" {% if u.solo_consulta %}checked{% endif %}></td>
+                      <td><input type="checkbox" name="bloqueado" class="form-check-input" {% if u.bloqueado %}checked{% endif %}></td>
+                      <td>
+                        <input type="password" name="password" placeholder="Nueva contraseña" class="form-control mb-1">
+                        <button type="submit" name="editar_usuario" value="1" class="btn btn-sm btn-success mb-1">Guardar</button>
+                        <button type="submit" name="eliminar_usuario" value="1" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar usuario?');">Eliminar</button>
+                      </td>
+                    </form>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted">No hay usuarios registrados.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+    {% endblock %}
+
+    {% block extra_scripts %}
+    <script>
+    // Autocompletado para los campos de ingreso de personal
+    function setupAutocomplete(inputSelector, url) {
+      const input = document.querySelector(inputSelector);
+      if (!input) return;
+      const listId = inputSelector.replace('#', '') + '-list';
+      let list = document.getElementById(listId);
+      if (!list) {
+        list = document.createElement('div');
+        list.id = listId;
+        list.className = 'autocomplete-list list-group position-absolute w-100';
+        input.parentNode.appendChild(list);
+      }
+      input.setAttribute('autocomplete', 'off');
+      input.addEventListener('input', function() {
+        const q = input.value;
+        if (q.length < 1) {
+          list.innerHTML = '';
+          return;
+        }
+        fetch(url + '?q=' + encodeURIComponent(q))
+          .then(resp => resp.json())
+          .then(function(data) {
+            list.innerHTML = '';
+            data.forEach(function(item) {
+              const el = document.createElement('button');
+              el.type = 'button';
+              el.className = 'list-group-item list-group-item-action';
+              el.textContent = item;
+              el.onclick = function() {
+                input.value = item;
+                list.innerHTML = '';
+              };
+              list.appendChild(el);
+            });
+          });
+      });
+      document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !list.contains(e.target)) {
+          list.innerHTML = '';
+        }
+      });
+      input.parentNode.style.position = 'relative';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      setupAutocomplete('input[name="nombre"]', '/autocomplete/persona/nombre/');
+      setupAutocomplete('input[name="apellido"]', '/autocomplete/persona/apellido/');
+      setupAutocomplete('input[name="cedula"]', '/autocomplete/persona/cedula/');
+      setupAutocomplete('input[name="placa"]', '/autocomplete/persona/placa/');
+      setupAutocomplete('input[name="empresa"]', '/autocomplete/persona/empresa/');
+    });
+    </script>
+    {% endblock %}
+
+
+

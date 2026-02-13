@@ -1,0 +1,295 @@
+    {% extends 'base.html' %}
+     {% load static %}
+   
+
+    {% block title %}Planta Milenio{% endblock %}
+
+    {% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <style>
+        /* Mantener el footer en la parte inferior */
+        html, body { height: 100%; }
+        .main-content { flex: 1 0 auto; }
+        .card-header.busqueda-header {
+            background: var(--primary-dark);
+            color: #fff !important;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+        .card-header.busqueda-header .fw-bold,
+        .card-header.busqueda-header .small,
+        .card-header.busqueda-header strong { color: #fff !important; }
+        .btn-cargar-datos { background: #4da3ff !important; color: #fff !important; border: none; }
+        .btn-cargar-datos:hover, .btn-cargar-datos:focus { background: #339cff !important; color: #fff !important; }
+    </style>
+    {% endblock %}
+
+    {% block content %}
+    <section class="section section-light main-content" style="padding-top: 0;">
+        <div class="container">
+            <h2 class="section-title" style="font-size:2rem;">Auditoría de Transportes</h2>
+            {% if messages %}
+            <div aria-live="polite" aria-atomic="true" class="position-relative">
+                <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+                    {% for message in messages %}
+                    <div class="toast align-items-center text-bg-{{ message.tags }} border-0 show" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                {{ message }}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+                        <!-- Buscador grande arriba de la tarjeta -->
+                        <form method="get" action="" class="row g-3 align-items-end mb-3">
+                            <div class="col-md-4 col-12">
+                                <input type="text" name="buscar" class="form-control" placeholder="Buscar por orden, placa o conductor" value="{{ buscar|default:'' }}">
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <button type="submit" class="btn btn-outline-primary w-100">Buscar</button>
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <a href="?" class="btn btn-outline-secondary w-100">Limpiar</a>
+                            </div>
+                        </form>
+                        <div class="card shadow-sm">
+                                <div class="card-header busqueda-header d-flex flex-wrap align-items-center justify-content-between">
+                                        <strong>Registros de Romana</strong>
+                                </div>
+                <div class="card-body p-0">
+                                        <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Número de orden</th>
+                                    <th>Vehículo</th>
+                                    <th>Conductor</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in registros %}
+                                <tr>
+                                    <td>{{ r.Orden }}</td>
+                                    <td>{{ r.Vehiculo_Placa }}</td>
+                                    <td>{{ r.Conductor_Nombre }} {{ r.Conductor_Apellido }}</td>
+                                    <td>
+                                        <!-- Botón para abrir modal de edición -->
+                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editarModal{{ r.Orden_Transporte_Id }}">
+                                            Editar
+                                        </button>
+                                        <form method="post" action="" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="registro_id" value="{{ r.Orden_Transporte_Id }}">
+                                            <button type="submit" name="eliminar_registro" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar este registro?');">Eliminar</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <!-- Modal de edición para este registro -->
+                                <div class="modal fade" id="editarModal{{ r.Orden_Transporte_Id }}" tabindex="-1" aria-labelledby="editarModalLabel{{ r.Orden_Transporte_Id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="editarModalLabel{{ r.Orden_Transporte_Id }}">Editar registro</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                            </div>
+                                            <form method="post" action="">
+                                                {% csrf_token %}
+                                                <div class="modal-body">
+                                                    <p>Solo puede modificar los siguientes datos:</p>
+                                                    <div class="mb-2">
+                                                        <label class="form-label">RIF de la Empresa de Transporte</label>
+                                                        <input type="text" name="campo_Empresa_Rif" value="{{ r.Empresa_Rif }}" class="form-control" id="empresaRifInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                        <div class="list-group position-absolute w-100" id="empresaRifList{{ r.Orden_Transporte_Id }}"></div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label">Cédula del Conductor</label>
+                                                        <input type="text" name="campo_Conductor_Cedula" value="{{ r.Conductor_Cedula }}" class="form-control" id="conductorInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                        <div class="list-group position-absolute w-100" id="conductorList{{ r.Orden_Transporte_Id }}"></div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label">Placa del Vehículo</label>
+                                                        <input type="text" name="campo_Vehiculo_Placa" value="{{ r.Vehiculo_Placa }}" class="form-control" id="vehiculoInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                        <div class="list-group position-absolute w-100" id="vehiculoList{{ r.Orden_Transporte_Id }}"></div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label">Placa del Remolque</label>
+                                                        <input type="text" name="campo_Vehiculo_Remolque_Placa" value="{{ r.Vehiculo_Remolque_Placa }}" class="form-control" id="remolqueInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                        <div class="list-group position-absolute w-100" id="remolqueList{{ r.Orden_Transporte_Id }}"></div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label">Destino</label>
+                                                        <input type="text" name="campo_Destino_Nombre" value="{{ r.Destino_Nombre }}" class="form-control" id="destinoInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                        <div class="list-group position-absolute w-100" id="destinoList{{ r.Orden_Transporte_Id }}"></div>
+                                                    </div>
+                                                    <!-- Datos ocultos para mantener integridad -->
+                                                    <input type="hidden" name="registro_id" value="{{ r.Orden_Transporte_Id }}">
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                    <button type="submit" name="editar_registro" class="btn btn-primary">Guardar cambios</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <!-- Paginación de registros de Romana -->
+                        {% if paginator.num_pages > 1 %}
+                        <nav aria-label="Paginación registros Romana" class="mt-2">
+                            <ul class="pagination justify-content-end mb-0">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Anterior">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                                {% endif %}
+                                {% for num in paginator.page_range %}
+                                    {% if num == page_obj.number %}
+                                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                    {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Siguiente">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                                    <th>Fecha y hora</th>
+                                    <th>Número de orden</th>
+                                    <th>Placa del vehículo</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if historial and historial|length > 0 %}
+                                    {% for h in historial %}
+                                    <tr>
+                                        <td>{{ h.fecha_hora|date:"m/d/Y H:i:s" }}</td>
+                                        <td>{{ h.numero_orden }}</td>
+                                        <td>{{ h.placa_vehiculo }}</td>
+                                        <td>{{ h.descripcion }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No hay ingresos registrados.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- PAGINACIÓN DEL HISTORIAL -->
+                    {% if historial_paginator.num_pages > 1 %}
+                    <nav aria-label="Historial paginación" class="mt-2">
+                        <ul class="pagination justify-content-end mb-0">
+                            {% if historial_has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ historial_previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Anterior">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                            {% endif %}
+                            {% for num in historial_paginator.page_range %}
+                                {% if num == historial_page %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num >= historial_page|add:'-2' and num <= historial_page|add:'2' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if historial_has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ historial_next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Siguiente">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% endblock %}
+
+    {% block extra_scripts %}
+    <script>
+    function setupAutocomplete(inputId, listId, url, displayFn, valueFn) {
+        const input = document.getElementById(inputId);
+        const list = document.getElementById(listId);
+        if (!input || !list) return;
+        input.addEventListener('input', function() {
+            const q = input.value;
+            if (q.length < 2) {
+                list.innerHTML = '';
+                return;
+            }
+            fetch(url + '?q=' + encodeURIComponent(q))
+                .then(resp => resp.json())
+                .then(function(data) {
+                    list.innerHTML = '';
+                    data.forEach(function(item) {
+                        const el = document.createElement('button');
+                        el.type = 'button';
+                        el.className = 'list-group-item list-group-item-action';
+                        el.textContent = displayFn(item);
+                        el.onclick = function() {
+                            input.value = valueFn(item);
+                            list.innerHTML = '';
+                        };
+                        list.appendChild(el);
+                    });
+                });
+        });
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !list.contains(e.target)) {
+                list.innerHTML = '';
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for r in registros %}
+            setupAutocomplete('empresaRifInput{{ r.Orden_Transporte_Id }}', 'empresaRifList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_empresa" %}', 
+                function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
+            setupAutocomplete('conductorInput{{ r.Orden_Transporte_Id }}', 'conductorList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_conductor" %}', 
+                function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
+            setupAutocomplete('vehiculoInput{{ r.Orden_Transporte_Id }}', 'vehiculoList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_chuto" %}', 
+                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+            setupAutocomplete('remolqueInput{{ r.Orden_Transporte_Id }}', 'remolqueList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_tanque" %}', 
+                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+            setupAutocomplete('destinoInput{{ r.Orden_Transporte_Id }}', 'destinoList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_destino" %}', 
+                function(item) { return item.nombre; }, function(item) { return item.nombre; });
+        {% endfor %}
+    });
+    </script>
+
+    {% endblock %}

@@ -20,3 +20,22 @@ class Historial(models.Model):
 
     def __str__(self):
         return f"{self.numero_orden} - {self.placa_vehiculo} - {self.fecha_hora}"
+
+
+
+class AccesoPersona(models.Model):
+    nombre = models.CharField(max_length=100)
+    apellido = models.CharField(max_length=100, blank=True)
+    cedula = models.CharField(max_length=50)
+    empresa = models.CharField(max_length=255, blank=True, null=True)  # Nuevo campo empresa
+    motivo_ingreso = models.CharField(max_length=255, blank=True, null=True)  # Nuevo campo
+    hora_entrada = models.DateTimeField(auto_now_add=True)
+    hora_salida = models.DateTimeField(null=True, blank=True)  # Nuevo campo para salida
+    placa_vehiculo = models.CharField(max_length=20, null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Acceso Persona'
+        verbose_name_plural = 'Accesos Personas'
+
+    def __str__(self):
+        return f"{self.nombre} {self.apellido} - {self.cedula} @ {self.hora_entrada}"

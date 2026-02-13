@@ -84,7 +84,7 @@ DATABASES = {
     },
     'sqlserver': {
         'ENGINE': 'mssql',
-        'NAME': 'AGRBSS_A',
+        'NAME': 'agro_pru',
         'USER': 'profit',
         'PASSWORD': 'profit',
         'HOST': '10.10.1.1', 
@@ -101,7 +101,7 @@ DATABASES = {
         'NAME': 'ceres_romana',
         'USER': 'profit',
         'PASSWORD': 'profit',
-        'HOST': '10.10.1.1', 
+        'HOST': '10.10.1.1',
         'PORT': '1433',        
         'OPTIONS': {
             'driver': 'FreeTDS',
@@ -165,6 +165,6 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Expiración de sesión por inactividad (15 minutos)
-SESSION_COOKIE_AGE = 900  # 15 minutos en segundos
+SESSION_COOKIE_AGE = 3600  # 15 minutos en segundos
 SESSION_SAVE_EVERY_REQUEST = True  # Renueva la sesión con cada petición
 

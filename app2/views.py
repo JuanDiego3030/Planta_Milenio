@@ -1,7 +1,367 @@
+from .crud import ControlAuditoria
+
+# Vista de auditoría de transportes (orden_profit_transporte)
+def auditoria(request):
+    """Vista para ver, editar y borrar registros de orden_profit_transporte."""
+    user_id = request.session.get('user_admin_id')
+    if not user_id:
+        from django.contrib import messages
+        messages.error(request, 'Debe iniciar sesión primero')
+        from django.shortcuts import redirect
+        return redirect('login')
+    try:
+        from .models import User_admin
+        user = User_admin.objects.get(id=user_id)
+    except User_admin.DoesNotExist:
+        from django.contrib import messages
+        messages.error(request, 'Usuario no encontrado')
+        from django.shortcuts import redirect
+        return redirect('login')
+    ctrl = ControlAuditoria()
+    from django.contrib import messages
+    error = None
+    message = None
+    # Borrar registro por SQL directo
+    if request.method == 'POST' and 'eliminar_registro' in request.POST:
+        registro_id = request.POST.get('registro_id')
+        if registro_id:
+            try:
+                from django.db import connections
+                with connections['ceres_romana'].cursor() as cursor:
+                    cursor.execute("DELETE FROM orden_profit_transporte WHERE Orden_Transporte_Id = %s", [registro_id])
+                messages.success(request, 'Registro eliminado correctamente.')
+            except Exception as e:
+                messages.error(request, f'Error al eliminar: {str(e)}')
+            from django.shortcuts import redirect
+            return redirect('auditoria')
+
+    # Editar registro por SQL directo
+    if request.method == 'POST' and 'editar_registro' in request.POST:
+        registro_id = request.POST.get('registro_id')
+        campos = {}
+        for campo in request.POST:
+            if campo.startswith('campo_'):
+                nombre = campo.replace('campo_', '')
+                campos[nombre] = request.POST[campo]
+        if registro_id and campos:
+            try:
+                from django.db import connections
+                set_clause = ', '.join([f"{k} = %s" for k in campos.keys()])
+                values = list(campos.values())
+                values.append(registro_id)
+                with connections['ceres_romana'].cursor() as cursor:
+                    cursor.execute(f"UPDATE orden_profit_transporte SET {set_clause} WHERE Orden_Transporte_Id = %s", values)
+                messages.success(request, 'Registro actualizado correctamente.')
+            except Exception as e:
+                messages.error(request, f'Error al actualizar: {str(e)}')
+            from django.shortcuts import redirect
+            return redirect('auditoria')
+    # Buscador: filtrar por número de orden, placa de vehículo o conductor
+    termino_busqueda = request.GET.get('buscar', '').strip()
+    registros = ctrl.listar_registros(100)
+    if termino_busqueda:
+        termino = termino_busqueda.lower()
+        registros = [r for r in registros if (
+            termino in str(r.get('Numero_Orden', '')).lower() or
+            termino in str(r.get('Vehiculo_Placa', '')).lower() or
+            termino in str(r.get('Conductor_Nombre', '')).lower() or
+            termino in str(r.get('Conductor_Apellido', '')).lower() or
+            termino in str(r.get('Conductor_Cedula', '')).lower()
+        )]
+    # Paginación de registros de Romana
+    from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+    page = request.GET.get('page', 1)
+    paginator = Paginator(registros, 10)
+    try:
+        registros_pagina = paginator.page(page)
+    except PageNotAnInteger:
+        registros_pagina = paginator.page(1)
+    except EmptyPage:
+        registros_pagina = paginator.page(paginator.num_pages)
+
+    return render(request, 'control_auditoria.html', {
+        'registros': registros_pagina,
+        'error': error,
+        'message': message,
+        'paginator': paginator,
+        'page_obj': registros_pagina,
+        'buscar': termino_busqueda,
+    })
+from .crud import ControlUsuarios
+# Vista para gestión de usuarios
+
+def control_usuarios(request):
+    user_id = request.session.get('user_admin_id')
+    if not user_id:
+        from django.contrib import messages
+        messages.error(request, 'Debe iniciar sesión primero')
+        from django.shortcuts import redirect
+        return redirect('login')
+    try:
+        from .models import User_admin
+        user = User_admin.objects.get(id=user_id)
+    except User_admin.DoesNotExist:
+        from django.contrib import messages
+        messages.error(request, 'Usuario no encontrado')
+        from django.shortcuts import redirect
+        return redirect('login')
+    ctrl = ControlUsuarios()
+    error = None
+    message = None
+    # Crear usuario
+    if request.method == 'POST' and 'crear_usuario' in request.POST:
+        nombre = request.POST.get('nombre', '').strip()
+        password = request.POST.get('password', '').strip()
+        email = request.POST.get('email', '').strip()
+        telefono = request.POST.get('telefono', '').strip()
+        solo_consulta = bool(request.POST.get('solo_consulta'))
+        bloqueado = bool(request.POST.get('bloqueado'))
+        if not nombre or not password:
+            error = 'Nombre y contraseña son obligatorios.'
+        else:
+            try:
+                ctrl.crear_usuario(nombre, password, email, telefono, solo_consulta, bloqueado)
+                message = 'Usuario creado correctamente.'
+            except Exception as e:
+                error = f'Error al crear usuario: {str(e)}'
+    # Editar usuario
+    if request.method == 'POST' and 'editar_usuario' in request.POST:
+        usuario_id = request.POST.get('usuario_id')
+        nombre = request.POST.get('nombre', '').strip()
+        password = request.POST.get('password', '').strip()
+        email = request.POST.get('email', '').strip()
+        telefono = request.POST.get('telefono', '').strip()
+        solo_consulta = bool(request.POST.get('solo_consulta'))
+        bloqueado = bool(request.POST.get('bloqueado'))
+        if not usuario_id:
+            error = 'ID de usuario requerido.'
+        else:
+            try:
+                update_data = {'nombre': nombre, 'email': email, 'telefono': telefono, 'solo_consulta': solo_consulta, 'bloqueado': bloqueado}
+                if password:
+                    update_data['password'] = password
+                ctrl.actualizar_usuario(usuario_id, **update_data)
+                message = 'Usuario actualizado correctamente.'
+            except Exception as e:
+                error = f'Error al actualizar usuario: {str(e)}'
+    # Eliminar usuario
+    if request.method == 'POST' and 'eliminar_usuario' in request.POST:
+        usuario_id = request.POST.get('usuario_id')
+        if not usuario_id:
+            error = 'ID de usuario requerido.'
+        else:
+            try:
+                ctrl.eliminar_usuario(usuario_id)
+                message = 'Usuario eliminado correctamente.'
+            except Exception as e:
+                error = f'Error al eliminar usuario: {str(e)}'
+    usuarios = ctrl.listar_usuarios()
+    return render(request, 'control_usuarios.html', {
+        'usuarios': usuarios,
+        'error': error,
+        'message': message,
+    })
+from weasyprint import HTML
+from django.template.loader import render_to_string
+def reporte_pdf_materia_prima(request):
+    """Genera PDF de entradas de materia prima según filtros de fecha."""
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
+    qs = Historial.objects.all().order_by('-fecha_hora')
+    if fecha_inicio:
+        try:
+            fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            qs = qs.filter(fecha_hora__gte=fecha_inicio_dt)
+        except Exception:
+            pass
+    if fecha_fin:
+        try:
+            fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+            qs = qs.filter(fecha_hora__lt=fecha_fin_dt)
+        except Exception:
+            pass
+    entradas = qs[:200]
+    html_string = render_to_string('pdf_materia_prima.html', {
+        'entradas': entradas,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+    })
+    pdf_file = HTML(string=html_string).write_pdf()
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reporte_materia_prima.pdf"'
+    return response
+
+def reporte_pdf_personal(request):
+    """Genera PDF de entradas/salidas de personal según filtros de fecha."""
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
+    qs = AccesoPersona.objects.all().order_by('-hora_entrada')
+    if fecha_inicio:
+        try:
+            fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            qs = qs.filter(hora_entrada__gte=fecha_inicio_dt)
+        except Exception:
+            pass
+    if fecha_fin:
+        try:
+            fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+            qs = qs.filter(hora_entrada__lt=fecha_fin_dt)
+        except Exception:
+            pass
+    entradas = qs[:200]
+    html_string = render_to_string('pdf_personal.html', {
+        'entradas': entradas,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+    })
+    pdf_file = HTML(string=html_string).write_pdf()
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reporte_personal.pdf"'
+    return response
+
+
+from django.views.decorators.http import require_GET
+from django.utils import timezone
+
+def reportes(request):
+    """
+    Vista para mostrar y descargar reportes de entrada de materia prima (control) y de personal (control_personas).
+    Permite filtrar por fechas y descargar PDF de ambos tipos de reportes.
+    """
+    user_id = request.session.get('user_admin_id')
+    if not user_id:
+        from django.contrib import messages
+        messages.error(request, 'Debe iniciar sesión primero')
+        from django.shortcuts import redirect
+        return redirect('login')
+    try:
+        from .models import User_admin
+        user = User_admin.objects.get(id=user_id)
+    except User_admin.DoesNotExist:
+        from django.contrib import messages
+        messages.error(request, 'Usuario no encontrado')
+        from django.shortcuts import redirect
+        return redirect('login')
+    
+    tipo = request.GET.get('tipo', 'materia_prima')  # 'materia_prima' o 'personal'
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
+    entradas = []
+    error = None
+    if tipo == 'materia_prima':
+        # Historial de materia prima (de la vista control)
+        qs = Historial.objects.all().order_by('-fecha_hora')
+        if fecha_inicio:
+            try:
+                fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+                qs = qs.filter(fecha_hora__gte=fecha_inicio_dt)
+            except Exception:
+                error = 'Fecha de inicio inválida.'
+        if fecha_fin:
+            try:
+                fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+                qs = qs.filter(fecha_hora__lt=fecha_fin_dt)
+            except Exception:
+                error = 'Fecha de fin inválida.'
+        entradas = qs[:200]
+        paginador = None
+        pagina_actual = None
+    elif tipo == 'personal':
+        # Entradas y salidas de personal, paginadas de a 10
+        qs = AccesoPersona.objects.all().order_by('-hora_entrada')
+        if fecha_inicio:
+            try:
+                fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+                qs = qs.filter(hora_entrada__gte=fecha_inicio_dt)
+            except Exception:
+                error = 'Fecha de inicio inválida.'
+        if fecha_fin:
+            try:
+                fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+                qs = qs.filter(hora_entrada__lt=fecha_fin_dt)
+            except Exception:
+                error = 'Fecha de fin inválida.'
+        from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+        paginador = Paginator(qs, 10)
+        page = request.GET.get('page', 1)
+        try:
+            entradas = paginador.page(page)
+            pagina_actual = entradas.number
+        except PageNotAnInteger:
+            entradas = paginador.page(1)
+            pagina_actual = 1
+        except EmptyPage:
+            entradas = paginador.page(paginador.num_pages)
+            pagina_actual = paginador.num_pages
+    else:
+        error = 'Tipo de reporte no válido.'
+        entradas = []
+        paginador = None
+        pagina_actual = None
+
+    return render(request, 'reportes.html', {
+        'tipo': tipo,
+        'entradas': entradas,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'error': error,
+        'paginador': paginador,
+        'pagina_actual': pagina_actual,
+    })
+
+@require_GET
+def autocomplete_persona_empresa(request):
+    q = request.GET.get('q', '').strip()
+    results = []
+    if q:
+        empresas = (AccesoPersona.objects.filter(empresa__icontains=q)
+                    .values_list('empresa', flat=True).exclude(empresa__isnull=True).exclude(empresa='').distinct()[:10])
+        results = list(empresas)
+    return JsonResponse(results, safe=False)
+
+@require_GET
+def autocomplete_persona_nombre(request):
+    q = request.GET.get('q', '').strip()
+    results = []
+    if q:
+        nombres = (AccesoPersona.objects.filter(nombre__icontains=q)
+                   .values_list('nombre', flat=True).distinct()[:10])
+        results = list(nombres)
+    return JsonResponse(results, safe=False)
+
+@require_GET
+def autocomplete_persona_apellido(request):
+    q = request.GET.get('q', '').strip()
+    results = []
+    if q:
+        apellidos = (AccesoPersona.objects.filter(apellido__icontains=q)
+                     .values_list('apellido', flat=True).distinct()[:10])
+        results = list(apellidos)
+    return JsonResponse(results, safe=False)
+
+@require_GET
+def autocomplete_persona_cedula(request):
+    q = request.GET.get('q', '').strip()
+    results = []
+    if q:
+        cedulas = (AccesoPersona.objects.filter(cedula__icontains=q)
+                   .values_list('cedula', flat=True).distinct()[:10])
+        results = list(cedulas)
+    return JsonResponse(results, safe=False)
+
+@require_GET
+def autocomplete_persona_placa(request):
+    q = request.GET.get('q', '').strip()
+    results = []
+    if q:
+        placas = (AccesoPersona.objects.filter(placa_vehiculo__icontains=q)
+                  .values_list('placa_vehiculo', flat=True).distinct()[:10])
+        results = list(placas)
+    return JsonResponse(results, safe=False)
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password
-from .models import User_admin, Historial
+from .models import User_admin, Historial, AccesoPersona
 from django.http import JsonResponse
 from django.db import connections
 from django.template.loader import render_to_string
@@ -11,6 +371,10 @@ import datetime
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
+from .crud import ControlDeMateriaPrima
+
+# Instancia reutilizable para operaciones DB
+ctrl = ControlDeMateriaPrima()
 
 
 
@@ -61,13 +425,7 @@ def control(request):
     error = None
 
     # Consultar empresas y conductores
-    empresas = []
-    try:
-        with connections['sqlserver'].cursor() as cursor:
-            cursor.execute("SELECT rif, nombre FROM empresas ORDER BY nombre")
-            empresas = [{'id': row[0], 'rif': row[0], 'nombre': row[1]} for row in cursor.fetchall()]
-    except Exception as e:
-        error = f"Error al cargar empresas: {str(e)}"
+    empresas = ctrl.fetch_empresas()
 
     # Si el usuario es solo de consulta, bloquear registros por POST
     if user.solo_consulta and request.method == 'POST' and request.POST.get('validar_fact_num'):
@@ -90,20 +448,12 @@ def control(request):
         co_art = request.POST.get('co_art')
 
         # --- Obtener datos del producto/renglón seleccionado ---
-
-        try:
-            with connections['sqlserver'].cursor() as cursor:
-                if reng_num and co_art:
-                    cursor.execute(
-                        "SELECT a.art_des, r.total_art FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
-                        [fact_num, reng_num, co_art]
-                    )
-                    row = cursor.fetchone()
-                    if row:
-                        producto_nombre = row[0] or producto_nombre
-                        cantidad = row[1] or 1
-        except Exception:
-            pass
+        producto_nombre = 'Producto genérico'
+        cantidad = 1
+        reng_info = ctrl.get_reng_info(fact_num, reng_num, co_art)
+        if reng_info:
+            producto_nombre = reng_info.get('art_des') or producto_nombre
+            cantidad = reng_info.get('total_art') or cantidad
 
         # --- Convertir fecha_orden a formato YYYY-MM-DD HH:MM:SS.mmm para SQL Server ---
         from datetime import datetime
@@ -121,112 +471,38 @@ def control(request):
                     continue
         if not fecha_orden_sql:
             dt = datetime.now(venezuela_tz)
-            fecha_orden_sql = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            historial_qs = Historial.objects.all().order_by('-fecha_hora')
+            buscar_historial = request.GET.get('buscar_historial', '').strip()
+            if buscar_historial:
+                from django.db.models import Q
+                historial_qs = historial_qs.filter(
+                    Q(numero_orden__icontains=buscar_historial) |
+                    Q(placa_vehiculo__icontains=buscar_historial) |
+                    Q(descripcion__icontains=buscar_historial)
+                )
 
         # --- NUEVO: obtener fecha/hora actual e IP para el registro de transporte ---
         fecha_ingreso = datetime.now(venezuela_tz).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         ip_ingreso = request.META.get('REMOTE_ADDR', '')
 
         # --- Obtener datos completos de cada entidad desde ceres_romana ---
-        empresa_id = 0
-        empresa_nombre = ''
-        try:
-            with connections['ceres_romana'].cursor() as cursor:
-                cursor.execute("SELECT TOP 1 Empresa_ID, Empresa_Nombre FROM empresa WHERE Empresa_Rif = %s", [empresa_rif])
-                row = cursor.fetchone()
-                if row:
-                    empresa_id, empresa_nombre = row
-        except Exception:
-            pass
+        empresa_id, empresa_nombre = ctrl.get_empresa_by_rif(empresa_rif)
+        vehiculo_id, vehiculo_nombre = ctrl.get_vehiculo_by_placa(vehiculo_placa)
+        vehiculo_remolque_id, vehiculo_remolque_nombre = ctrl.get_vehiculo_remolque_by_placa(vehiculo_remolque_placa)
+        conductor_id, conductor_nombre, conductor_apellido = ctrl.get_conductor_by_cedula(conductor_cedula)
+        destino_id = ctrl.get_destino_id_by_name(destino_nombre)
 
-        vehiculo_id = 0
-        vehiculo_nombre = ''
-        if vehiculo_placa:
-            try:
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute("SELECT TOP 1 Vehiculo_id, Vehiculo_nombre FROM Vehiculo WHERE Vehiculo_placa = %s", [vehiculo_placa])
-                    row = cursor.fetchone()
-                    if row:
-                        vehiculo_id, vehiculo_nombre = row
-            except Exception:
-                pass
-
-        vehiculo_remolque_id = None
-        vehiculo_remolque_nombre = ''
-        if vehiculo_remolque_placa:
-            try:
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute("SELECT TOP 1 Vehiculo_Remolque_id, Vehiculo_Remolque_Nombre FROM Vehiculo_Remolque WHERE Vehiculo_Remolque_Placa = %s", [vehiculo_remolque_placa])
-                    row = cursor.fetchone()
-                    if row:
-                        vehiculo_remolque_id, vehiculo_remolque_nombre = row
-            except Exception:
-                pass
-
-        conductor_id = 0
-        conductor_nombre = ''
-        conductor_apellido = ''
-        if conductor_cedula:
-            try:
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute("SELECT TOP 1 Conductor_id, Conductor_Nombre, Conductor_Apelido FROM conductor WHERE Conductor_Cedula = %s", [conductor_cedula])
-                    row = cursor.fetchone()
-                    if row:
-                        conductor_id, conductor_nombre, conductor_apellido = row
-            except Exception:
-                pass
-
-        destino_id = 0
-        if destino_nombre:
-            try:
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute("SELECT TOP 1 Destino_Id FROM Destino WHERE Destino_Nombre = %s", [destino_nombre])
-                    row = cursor.fetchone()
-                    if row:
-                        destino_id = row[0]
-            except Exception:
-                pass
-
-        # --- DATOS DE PRODUCTO: obtener SIEMPRE desde la base de datos el campo8 y el producto_id correspondiente del renglón seleccionado ---
+        # --- DATOS DE PRODUCTO: obtener campo8 y producto_id (desde reng_info o fallback POST) ---
         producto_codigo = None
         producto_id = None
-        producto_nombre = 'Producto genérico'
-        cantidad = 1
         peso = 0
-        campo8 = None
+        campo8 = reng_info.get('campo8') if reng_info else None
+        producto_codigo = campo8
         producto_id_db = None
-        # Buscar datos del producto/renglón seleccionado (obligatorio para identificar el producto exacto)
-        if reng_num and co_art:
-            try:
-                with connections['sqlserver'].cursor() as cursor:
-                    cursor.execute(
-                        "SELECT a.art_des, r.total_art, a.campo8 FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
-                        [fact_num, reng_num, co_art]
-                    )
-                    row = cursor.fetchone()
-                    if row:
-                        producto_nombre = row[0] or producto_nombre
-                        cantidad = row[1] or 1
-                        campo8 = row[2]
-            except Exception:
-                campo8 = None
-        # Si no se obtuvo campo8, intentar obtenerlo del POST (fallback)
-        if not campo8:
-            campo8 = request.POST.get('campo8')
-        # Buscar producto_id en ceres_romana usando campo8
         if campo8:
-            try:
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute("SELECT Producto_Id FROM PRODUCTO WHERE RTRIM(Producto_Codigo) = %s", [campo8.strip()])
-                    prod_row = cursor.fetchone()
-                    if prod_row:
-                        producto_id_db = prod_row[0]
-            except Exception:
-                producto_id_db = None
-        # Si no se obtuvo producto_id, intentar obtenerlo del POST (fallback)
+            producto_id_db = ctrl.lookup_producto_id_by_codigo(campo8)
         if not producto_id_db:
             producto_id_db = request.POST.get('producto_id')
-        producto_codigo = campo8
         producto_id = producto_id_db
 
         # --- Validar que producto_id y producto_codigo existan antes de continuar ---
@@ -242,72 +518,33 @@ def control(request):
         # Solo se registra el producto/renglón seleccionado
 
         # --- Obtener Orden_Id desde la tabla orden_profit ---
-        orden_id = None
-        try:
-            with connections['ceres_romana'].cursor() as cursor:
-                cursor.execute(
-                    "SELECT TOP 1 orden_id FROM orden_profit WHERE orden = %s ORDER BY orden_id DESC",
-                    [fact_num]
-                )
-                row = cursor.fetchone()
-                if row:
-                    orden_id = row[0]
-        except Exception:
-            orden_id = None
+        orden_id = ctrl.get_orden_id(fact_num)
 
         # --- Inserción en Orden_Profit_Transporte_Insert ---
         try:
-            # Obtener campo8 y producto_id para el producto/renglón seleccionado
-            campo8 = None
-            producto_id_db = None
-            if reng_num and co_art:
-                try:
-                    with connections['sqlserver'].cursor() as cursor:
-                        cursor.execute(
-                            "SELECT a.campo8 FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
-                            [fact_num, reng_num, co_art]
-                        )
-                        row = cursor.fetchone()
-                        if row:
-                            campo8 = row[0]
-                except Exception:
-                    campo8 = None
-                if campo8:
-                    try:
-                        with connections['ceres_romana'].cursor() as cursor:
-                            cursor.execute("SELECT Producto_Id FROM PRODUCTO WHERE RTRIM(Producto_Codigo) = %s", [campo8.strip()])
-                            prod_row = cursor.fetchone()
-                            if prod_row:
-                                producto_id_db = prod_row[0]
-                    except Exception:
-                        producto_id_db = None
-            # Si no hay campo8 o producto_id_db, usar los valores por defecto
-            producto_codigo_final = campo8 if campo8 else producto_codigo
-            producto_id_final = producto_id_db if producto_id_db else producto_id
-
-            with connections['ceres_romana'].cursor() as cursor:
-                cursor.execute("""
-                    EXEC [dbo].[Orden_Profit_Transporte_Insert] %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                """, [
-                    orden_id,
-                    fact_num,
-                    producto_id_final,
-                    producto_codigo_final,
-                    None,  # Pesada_Id
-                    empresa_id,
-                    empresa_rif,
-                    empresa_nombre,
-                    vehiculo_id,
-                    vehiculo_placa,
-                    vehiculo_remolque_id,
-                    vehiculo_remolque_placa,
-                    conductor_id,
-                    conductor_cedula,
-                    conductor_nombre,
-                    conductor_apellido,
-                    destino_id,
-                    destino_nombre
-                ])
+            # Preparar parámetros del producto para la inserción
+            producto_codigo_final = producto_codigo
+            producto_id_final = producto_id
+            orden_id_param = orden_id if orden_id is not None else 0
+            ctrl.insert_orden_transporte(
+                orden_id_param,
+                fact_num,
+                producto_id_final,
+                producto_codigo_final,
+                empresa_id,
+                empresa_rif,
+                empresa_nombre,
+                vehiculo_id,
+                vehiculo_placa,
+                vehiculo_remolque_id,
+                vehiculo_remolque_placa,
+                conductor_id,
+                conductor_cedula,
+                conductor_nombre,
+                conductor_apellido,
+                destino_id,
+                destino_nombre
+            )
             messages.success(request, f"¡Registro exitoso! La orden {fact_num} fue registrada correctamente en Romana.")
         except Exception as e:
             error = f"Error al validar la orden (Orden_Profit_Transporte_Insert): {str(e)}"
@@ -460,81 +697,12 @@ def control(request):
         params = vals
         message = f"Mostrando resultados para {len(vals)} fact_num(s)."
 
-    registros = []
-    orden_id_map = {}
-    try:
-        # Obtener orden_id para el/los fact_num consultados
-        if vals:
-            with connections['ceres_romana'].cursor() as cursor:
-                cursor.execute(
-                    f"SELECT orden, orden_id FROM orden_profit WHERE orden IN ({','.join(['%s']*len(vals))})",
-                    vals
-                )
-                for row in cursor.fetchall():
-                    orden_id_map[str(row[0])] = row[1]
-        with connections['sqlserver'].cursor() as cursor:
-            cursor.execute(sql, params)
-            cols = [c[0] for c in cursor.description] if cursor.description else []
-            rows = cursor.fetchall()
-            # Pre-cargar historial en memoria para marcar registros por (numero_orden, placa_vehiculo, descripcion, pendiente)
-            historial_objs = Historial.objects.all()
-            historial_map = {}
-            for h in historial_objs:
-                key = (h.numero_orden, h.placa_vehiculo, h.descripcion)
-                if key not in historial_map or h.fecha_hora > historial_map[key].fecha_hora:
-                    historial_map[key] = h
-            for row in rows:
-                reg = dict(zip(cols, row))
-                # Formatear los campos numéricos
-                for campo in ['total_art', 'uni_venta', 'pendiente']:
-                    reg[campo] = format_number_backend(reg.get(campo))
-                reg['orden_id'] = orden_id_map.get(str(reg.get('fact_num')))
-                # Solo asigna la placa si existe, nunca la descripción del producto
-                placa = reg.get('vehiculo_placa') or ''
-                descripcion = reg.get('art_des') or reg.get('descrip') or ''
-                key = (reg.get('fact_num'), placa, descripcion)
-                hist = historial_map.get(key)
-                pendiente_actual = None
-                try:
-                    pendiente_actual = float(reg.get('pendiente')) if reg.get('pendiente') is not None else None
-                except Exception:
-                    pendiente_actual = None
-                ingreso_registrado = False
-                if hist:
-                    if (
-                        hist.pendiente is not None and pendiente_actual is not None and float(hist.pendiente) == float(pendiente_actual)
-                    ):
-                        ingreso_registrado = True
-                reg['ingreso_registrado'] = ingreso_registrado
-                reg['vehiculo_placa'] = placa  # <-- Solo la placa, nunca la descripción
-                reg['descripcion'] = descripcion
-                reg['reng_num'] = reg.get('reng_num')
-                reg['co_art'] = reg.get('co_art')
-                # Campo 8 como código de producto
-                reg['campo8'] = reg.get('campo8', '')
-
-                # Buscar Producto_Id en ceres_romana usando campo8
-                producto_id = None
-                campo8 = reg.get('campo8', '').strip() if reg.get('campo8') else ''
-                if campo8:
-                    try:
-                        with connections['ceres_romana'].cursor() as cursor:
-                            cursor.execute("SELECT Producto_Id FROM PRODUCTO WHERE RTRIM(Producto_Codigo) = %s", [campo8])
-                            prod_row = cursor.fetchone()
-                            if prod_row:
-                                producto_id = prod_row[0]
-                    except Exception:
-                        producto_id = None
-                reg['producto_id'] = producto_id
-
-                reg['empresa_rif'] = reg.get('empresa_rif', '')  # o el valor real si lo tienes
-                reg['conductor'] = reg.get('conductor', '')
-                reg['vehiculo_remolque_placa'] = reg.get('vehiculo_remolque_placa', '')
-                reg['destino_nombre'] = reg.get('destino_nombre', '')
-                registros.append(reg)
-    except Exception as e:
-        registros = []
-        error = str(e)
+    registros, err = ctrl.get_registros(vals)
+    error = err
+    # Formatear los campos numéricos en los registros obtenidos
+    for reg in registros:
+        for campo in ['total_art', 'uni_venta', 'pendiente']:
+            reg[campo] = format_number_backend(reg.get(campo))
 
     status_cond = request.GET.get('status_cond', '')
 
@@ -555,7 +723,6 @@ def control(request):
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
     })
-
 
 def autocomplete_empresa(request):
     q = request.GET.get('q', '').strip()
@@ -665,3 +832,103 @@ def logout(request):
     request.session.flush()
     messages.success(request, 'Has cerrado sesión exitosamente.')
     return redirect('login')
+
+
+@never_cache
+def control_personas(request):
+    """Vista para control de acceso de personas: muestra formulario y lista de accesos recientes.
+    POST crea una entrada `AccesoPersona` con hora_entrada automática.
+    """
+    user_id = request.session.get('user_admin_id')
+    if not user_id:
+        from django.contrib import messages
+        messages.error(request, 'Debe iniciar sesión primero')
+        from django.shortcuts import redirect
+        return redirect('login')
+    try:
+        from .models import User_admin
+        user = User_admin.objects.get(id=user_id)
+    except User_admin.DoesNotExist:
+        from django.contrib import messages
+        messages.error(request, 'Usuario no encontrado')
+        from django.shortcuts import redirect
+        return redirect('login')
+    from .crud import ControlDeMateriaPrima
+    ctrl = ControlDeMateriaPrima()
+    if request.method == 'POST':
+        salida_id = request.POST.get('salida_id')
+        if salida_id:
+            try:
+                updated = ctrl.registrar_salida_persona(salida_id)
+                if updated:
+                    messages.success(request, 'Salida registrada correctamente.')
+                else:
+                    messages.warning(request, 'La salida ya estaba registrada o el registro no existe.')
+            except Exception as e:
+                messages.error(request, f'Error al registrar salida: {str(e)}')
+            return redirect('control_personas')
+
+        nombre = request.POST.get('nombre', '').strip()
+        apellido = request.POST.get('apellido', '').strip()
+        cedula = request.POST.get('cedula', '').strip()
+        empresa = request.POST.get('empresa', '').strip()
+        motivo_ingreso = request.POST.get('motivo_ingreso', '').strip()
+        placa = request.POST.get('placa', '').strip()
+
+        if not nombre or not cedula or not motivo_ingreso:
+            messages.error(request, 'Nombre, cédula y motivo de ingreso son obligatorios.')
+            return redirect('control_personas')
+
+        try:
+            ctrl.crear_acceso_persona(
+                nombre=nombre,
+                apellido=apellido,
+                cedula=cedula,
+                empresa=empresa,
+                motivo_ingreso=motivo_ingreso,
+                placa_vehiculo=placa if placa else None
+            )
+            messages.success(request, 'Entrada registrada correctamente.')
+        except Exception as e:
+            messages.error(request, f'Error al guardar entrada: {str(e)}')
+        return redirect('control_personas')
+
+    # GET: mostrar últimas 100 entradas o filtrar por búsqueda
+    buscar = request.GET.get('buscar', '').strip()
+    if buscar:
+        from django.db.models import Q
+        entradas = AccesoPersona.objects.filter(
+            Q(nombre__icontains=buscar) |
+            Q(apellido__icontains=buscar) |
+            Q(cedula__icontains=buscar) |
+            Q(placa_vehiculo__icontains=buscar)
+        ).order_by('-hora_entrada')[:100]
+    else:
+        entradas = ctrl.listar_accesos_persona(100)
+    # Historial de ingresos de personal (últimos 100, paginados de a 10)
+    from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+    historial_qs = AccesoPersona.objects.all().order_by('-hora_entrada')
+    historial_paginator = Paginator(historial_qs, 10)
+    historial_page = request.GET.get('historial_page', 1)
+    try:
+        historial = historial_paginator.page(historial_page)
+        historial_page_num = historial.number
+    except PageNotAnInteger:
+        historial = historial_paginator.page(1)
+        historial_page_num = 1
+    except EmptyPage:
+        historial = historial_paginator.page(historial_paginator.num_pages)
+        historial_page_num = historial_paginator.num_pages
+
+    return render(request, 'control_personas.html', {
+        'entradas': entradas,
+        'request': request,
+        'historial': historial,
+        'historial_paginator': historial_paginator,
+        'historial_page': historial_page_num,
+        'historial_has_previous': historial.has_previous(),
+        'historial_has_next': historial.has_next(),
+        'historial_previous_page_number': historial.previous_page_number() if historial.has_previous() else None,
+        'historial_next_page_number': historial.next_page_number() if historial.has_next() else None,
+    })
+

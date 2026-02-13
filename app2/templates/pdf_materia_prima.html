@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Materia Prima</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+        th, td { border: 1px solid #333; padding: 4px; text-align: left; }
+        th { background: #eee; }
+        h2 { margin-bottom: 0; }
+        .fecha { font-size: 11px; color: #555; }
+    </style>
+</head>
+<body>
+    <h2>Reporte de entradas de materia prima</h2>
+    <div class="fecha">
+        {% if fecha_inicio %}Desde: {{ fecha_inicio }}{% endif %}
+        {% if fecha_fin %} &nbsp; Hasta: {{ fecha_fin }}{% endif %}
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha/Hora</th>
+                <th>N° Orden</th>
+                <th>Proveedor</th>
+                <th>Producto</th>
+                <th>Placa</th>
+                <th>Peso</th>
+                <th>Destino</th>
+                <th>Empresa</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entradas %}
+            <tr>
+                <td>{{ e.fecha_hora|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ e.numero_orden }}</td>
+                <td>{{ e.proveedor }}</td>
+                <td>{{ e.descripcion }}</td>
+                <td>{{ e.placa_vehiculo }}</td>
+                <td>{{ e.peso|default_if_none:"" }}</td>
+                <td>{{ e.destino|default_if_none:"" }}</td>
+                <td>{{ e.empresa|default_if_none:"" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8">No hay registros.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

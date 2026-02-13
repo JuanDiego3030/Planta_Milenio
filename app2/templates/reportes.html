@@ -1,0 +1,57 @@
+    {% extends 'base.html' %}
+    {% load static %}
+
+    {% block title %}Reportes de entradas{% endblock %}
+
+    {% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <style>
+      .main-content { min-height: 60vh; }
+      .form-inline-row .form-control { min-width: 180px; }
+    </style>
+    {% endblock %}
+
+    {% block content %}
+    <section class="section main-content">
+      <div class="container">
+        <h2 class="mb-4">Reportes de entradas</h2>
+        {% if error %}
+          <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        <!-- Formularios simples para descargar PDF de cada tipo de reporte -->
+        <div class="row justify-content-center">
+          <div class="col-md-6 mb-4">
+            <form method="get" action="{% url 'reporte_pdf_materia_prima' %}" class="card card-body shadow-sm">
+              <h5 class="mb-3">Reporte de entrada de materia prima</h5>
+              <div class="mb-3">
+                <label class="form-label">Fecha inicio</label>
+                <input type="date" name="fecha_inicio" class="form-control">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Fecha fin</label>
+                <input type="date" name="fecha_fin" class="form-control">
+              </div>
+              <button type="submit" class="btn btn-success w-100"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+            </form>
+          </div>
+          <div class="col-md-6 mb-4">
+            <form method="get" action="{% url 'reporte_pdf_personal' %}" class="card card-body shadow-sm">
+              <h5 class="mb-3">Reporte de entrada/salida de personal</h5>
+              <div class="mb-3">
+                <label class="form-label">Fecha inicio</label>
+                <input type="date" name="fecha_inicio" class="form-control">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Fecha fin</label>
+                <input type="date" name="fecha_fin" class="form-control">
+              </div>
+              <button type="submit" class="btn btn-success w-100"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endblock %}
+
+
+
