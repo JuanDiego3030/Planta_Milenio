@@ -964,12 +964,15 @@ def control_personas(request):
     if not user.permiso_control_personas:
         messages.error(request, 'No tiene permiso para acceder a la vista de control de personas.')
         return redirect('login')
-    if user.solo_consulta:
-        messages.error(request, 'No tiene permisos para registrar o modificar accesos de personas. Solo puede consultar.')
-        return redirect('control_personas')
+    # No redirigir aquí si el usuario es solo_consulta — permitir GET/consulta.
+    read_only = user.solo_consulta
     from .crud import ControlDeMateriaPrima
     ctrl = ControlDeMateriaPrima()
     if request.method == 'POST':
+        # Bloquear operaciones de escritura si está en modo solo consulta
+        if read_only:
+            messages.error(request, 'No tiene permisos para registrar o modificar accesos de personas. Solo puede consultar.')
+            return redirect('control_personas')
         # Solo permite registrar entradas/salidas si tiene permiso booleano
         if not user.permiso_control_personas:
             from django.contrib import messages
