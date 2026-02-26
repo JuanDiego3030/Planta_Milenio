@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Project styles: reuse same styles as index -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="icon" href="{% static 'images/Agrotrack_logo.png' %}" type="image/png">
     {% block extra_head %}{% endblock %}
     <style>
         /* Simple layout tweaks to ensure sidebar + content spacing */
@@ -62,32 +63,33 @@
             color: var(--text-color, #333);
             border: 1px solid var(--border-color, #dee2e6);
         }
-        /* Navbar layout: fix logo to corner, center the clock, keep actions on the right */
-        .header .container { position: relative; }
-        .header .logo { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); z-index: 5; }
-        #navbar-clock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; }
-        .header .actions { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); z-index: 5; }
+        /* Navbar layout: logo fijo en esquina, por encima del sidebar */
+        .header { min-height: 56px; background: var(--primary-dark); position: fixed; top: 0; left: 0; width: 100%; z-index: 1100; }
+        .header .logo { position: absolute; left: 0.75rem; top: 0.5rem; z-index: 1200; }
+        .header .logo img { max-height: 56px; width: auto; }
+        #navbar-clock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1101; }
+        .header .actions { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); z-index: 1101; }
         /* Ensure header has enough height for fixed positioning */
         .header { min-height: 56px; }
     </style>
 </head>
 <body>
     <!-- Reusable navbar (based on index.html) -->
-    <header class="header">
-        <div class="container header-wrapper d-flex justify-content-between align-items-center">
-            <a href="{% url 'login' %}" class="logo d-flex align-items-center text-decoration-none">
-                <i class="fas fa-industry me-2"></i>
-                <span class="h5 mb-0">AgroTrack</span>
-            </a>
-            <div id="navbar-clock" class="fw-bold text-nowrap" style="font-size:1rem;"><i class="fa fa-clock me-1"></i><span id="clock-time"></span></div>
-            <div class="actions d-flex align-items-center gap-3">
+    <header class="header position-fixed w-100" style="top:0; left:0; z-index:1100; background:white; min-height:56px;">
+        <a href="{% url 'control' %}" class="logo d-flex align-items-center text-decoration-none position-absolute" style="left:0.75rem; top:0.5rem; z-index:1200;">
+            <img src="{% static 'images/Agrotrack_logo.png' %}" alt="AgroTrack Logo" class="img-fluid">
+            <span class="h4 ms-2"><strong>AgroTrack</strong></span>
+        </a>
+        <div class="container header-wrapper d-flex justify-content-between align-items-center" style="position:relative;">
+            <div id="navbar-clock" class="fw-bold text-nowrap" style="font-size:1rem; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:1101;"><i class="fa fa-clock me-1"></i><span id="clock-time"></span></div>
+            <div class="actions d-flex align-items-center gap-3" style="position:absolute; right:0.75rem; top:50%; transform:translateY(-50%); z-index:1101;">
                 <a href="{% url 'logout' %}" class="btn btn-outline-light"><i class="fas fa-sign-out-alt me-1"></i> Cerrar sesión</a>
             </div>
         </div>
     </header>
 
     <!-- Toast container (global) -->
-    <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1080; min-width: 300px;">
+    <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1200; min-width: 300px;">
         <div id="toast-container"></div>
     </div>
 

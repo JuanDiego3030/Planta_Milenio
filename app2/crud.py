@@ -266,106 +266,67 @@ class ControlDeMateriaPrima:
             ])
 
     def get_registros(self, vals):
-        """Realiza la consulta principal para obtener registros y les añade campos auxiliares.
-        Retorna (registros, error)
-        """
+        """Obtiene registros de órdenes desde la tabla orden_profit de ceres_romana."""
         registros = []
         error = None
         try:
-            # Obtener orden_id para los fact_num
-            orden_id_map = {}
-            if vals:
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute(
-                        f"SELECT orden, orden_id FROM orden_profit WHERE orden IN ({','.join(['%s']*len(vals))})",
-                        vals
-                    )
-                    for row in cursor.fetchall():
-                        orden_id_map[str(row[0])] = row[1]
-
-            # Consulta a sqlserver
+            # Consulta a ceres_romana.orden_profit
             placeholders = ','.join(['%s'] * len(vals))
-            if len(vals) == 1:
-                sql = """
-                select h.fact_num, h.fec_emis, h.status, h.co_cli, p.prov_des, h.descrip, h.comentario as hcoment,
-                       r.comentario as rcoment, r.reng_num, r.co_art, a.art_des, l.lin_des, r.total_art, r.uni_venta, r.pendiente,
-                       a.campo8
-                from reng_ord r
-                left join ordenes h on h.fact_num=r.fact_num
-                left join prov p on p.co_prov=h.co_cli
-                left join art a on a.co_art=r.co_art
-                left join lin_art l on l.co_lin=a.co_lin
-                where h.fact_num = %s
-                """
-                params = [vals[0]]
-            else:
-                sql = f"""
-                select h.fact_num, h.fec_emis, h.status, h.co_cli, p.prov_des, h.descrip, h.comentario as hcoment,
-                       r.comentario as rcoment, r.reng_num, r.co_art, a.art_des, l.lin_des, r.total_art, r.uni_venta, r.pendiente,
-                       a.campo8, p.Producto_Codigo, p.Producto_Nombre, p.Producto_Descripcion
-                from reng_ord r
-                left join ordenes h on h.fact_num=r.fact_num
-                left join prov p on p.co_prov=h.co_cli
-                left join art a on a.co_art=r.co_art
-                left join lin_art l on l.co_lin=a.co_lin
-                where h.fact_num IN ({placeholders})
-                """.replace('{placeholders}', placeholders)
-                params = vals
-
-            with connections['sqlserver'].cursor() as cursor:
+            sql = f"""
+                SELECT Orden_Id, Orden, Status, Proveedor_Id, Proveedor_Rif, Proveedor_Nombre,
+                       Producto_Id, Producto_Codigo, Producto_Nombre, Cantidad, Peso, Fecha_Orden, Fecha, Importacion
+                FROM orden_profit
+                WHERE Orden IN ({placeholders})
+                ORDER BY Orden_Id DESC
+            """
+            params = vals
+            with connections['ceres_romana'].cursor() as cursor:
                 cursor.execute(sql, params)
                 cols = [c[0] for c in cursor.description] if cursor.description else []
                 rows = cursor.fetchall()
 
-                # Pre-cargar historial
-                historial_objs = Historial.objects.all()
-                historial_map = {}
-                for h in historial_objs:
-                    key = (h.numero_orden, h.placa_vehiculo, h.descripcion)
-                    if key not in historial_map or h.fecha_hora > historial_map[key].fecha_hora:
-                        historial_map[key] = h
+            # Pre-cargar historial
+            historial_objs = Historial.objects.all()
+            historial_map = {}
+            for h in historial_objs:
+                key = (h.numero_orden, h.placa_vehiculo, h.descripcion)
+                if key not in historial_map or h.fecha_hora > historial_map[key].fecha_hora:
+                    historial_map[key] = h
 
-                for row in rows:
-                    reg = dict(zip(cols, row))
-                    # Formateo numérico opcional -- dejarlo sin formato aquí para mantener consistencia con la vista
-                    reg['orden_id'] = orden_id_map.get(str(reg.get('fact_num')))
-                    placa = reg.get('vehiculo_placa') or ''
-                    descripcion = reg.get('art_des') or reg.get('descrip') or ''
-                    key = (reg.get('fact_num'), placa, descripcion)
-                    hist = historial_map.get(key)
+            for row in rows:
+                reg = dict(zip(cols, row))
+                # Formateo y mapeo de campos para compatibilidad con la vista/template
+                reg['fact_num'] = reg.get('Orden')
+                reg['fec_emis'] = reg.get('Fecha_Orden')
+                reg['status'] = reg.get('Status')
+                reg['co_cli'] = reg.get('Proveedor_Id')
+                reg['prov_des'] = reg.get('Proveedor_Nombre')
+                reg['descrip'] = reg.get('Producto_Nombre')
+                reg['total_art'] = reg.get('Cantidad')
+                reg['uni_venta'] = reg.get('Peso')
+                reg['pendiente'] = reg.get('Cantidad')  # O ajustar según lógica de pendiente
+                reg['co_art'] = reg.get('Producto_Codigo')
+                reg['art_des'] = reg.get('Producto_Nombre')
+                reg['producto_id'] = reg.get('Producto_Id')
+                reg['empresa_rif'] = reg.get('Proveedor_Rif')
+                reg['vehiculo_placa'] = ''
+                reg['descripcion'] = reg.get('Producto_Nombre')
+                reg['reng_num'] = 1  # No hay renglones, poner 1 por defecto
+                reg['campo8'] = reg.get('Producto_Codigo')
+                # Historial y registro de ingreso
+                key = (reg['fact_num'], reg['vehiculo_placa'], reg['descripcion'])
+                hist = historial_map.get(key)
+                pendiente_actual = None
+                try:
+                    pendiente_actual = float(reg.get('pendiente')) if reg.get('pendiente') is not None else None
+                except Exception:
                     pendiente_actual = None
-                    try:
-                        pendiente_actual = float(reg.get('pendiente')) if reg.get('pendiente') is not None else None
-                    except Exception:
-                        pendiente_actual = None
-                    ingreso_registrado = False
-                    if hist:
-                        if (hist.pendiente is not None and pendiente_actual is not None and float(hist.pendiente) == float(pendiente_actual)):
-                            ingreso_registrado = True
-                    reg['ingreso_registrado'] = ingreso_registrado
-                    reg['vehiculo_placa'] = placa
-                    reg['descripcion'] = descripcion
-                    reg['reng_num'] = reg.get('reng_num')
-                    reg['co_art'] = reg.get('co_art')
-                    reg['campo8'] = reg.get('campo8', '')
-
-                    producto_id = None
-                    campo8 = reg.get('campo8', '').strip() if reg.get('campo8') else ''
-                    if campo8:
-                        try:
-                            with connections['ceres_romana'].cursor() as cursor:
-                                cursor.execute("SELECT Producto_Id FROM PRODUCTO WHERE RTRIM(Producto_Codigo) = %s", [campo8])
-                                prod_row = cursor.fetchone()
-                                if prod_row:
-                                    producto_id = prod_row[0]
-                        except Exception:
-                            producto_id = None
-                    reg['producto_id'] = producto_id
-                    reg['empresa_rif'] = reg.get('empresa_rif', '')
-                    reg['conductor'] = reg.get('conductor', '')
-                    reg['vehiculo_remolque_placa'] = reg.get('vehiculo_remolque_placa', '')
-                    reg['destino_nombre'] = reg.get('destino_nombre', '')
-                    registros.append(reg)
+                ingreso_registrado = False
+                if hist:
+                    if (hist.pendiente is not None and pendiente_actual is not None and float(hist.pendiente) == float(pendiente_actual)):
+                        ingreso_registrado = True
+                reg['ingreso_registrado'] = ingreso_registrado
+                registros.append(reg)
         except Exception as e:
             registros = []
             error = str(e)

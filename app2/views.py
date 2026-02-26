@@ -547,18 +547,35 @@ def control(request):
         vehiculo_placa = request.POST.get('vehiculo')
         vehiculo_remolque_placa = request.POST.get('vehiculo_remolque')
         destino_nombre = request.POST.get('destino')
-        reng_num = request.POST.get('reng_num')
-        co_art = request.POST.get('co_art')
+        # Ahora los datos del producto seleccionado vienen del select y campos ocultos
+        producto_id = request.POST.get('producto_id')  # ID Producto
+        producto_codigo = request.POST.get('producto_codigo')  # Producto_Codigo de orden_profit
 
-        # --- Obtener datos del producto/renglón seleccionado ---
-        producto_nombre = 'Producto genérico'
-        cantidad = 1
-        reng_info = ctrl.get_reng_info(fact_num, reng_num, co_art)
-        if reng_info:
-            producto_nombre = reng_info.get('art_des') or producto_nombre
-            cantidad = reng_info.get('total_art') or cantidad
+        # Validar solo producto_id y producto_codigo (Producto_Codigo y ID Producto)
+        campos_faltantes = []
+        if not producto_id:
+            campos_faltantes.append('ID Producto (producto_id)')
+        if not producto_codigo:
+            campos_faltantes.append('Código de producto (producto_codigo)')
+        if not empresa_rif:
+            campos_faltantes.append('Empresa (RIF)')
+        if not conductor_cedula:
+            campos_faltantes.append('Conductor (cédula)')
+        if not vehiculo_placa:
+            campos_faltantes.append('Vehículo (placa)')
+        if not destino_nombre:
+            campos_faltantes.append('Destino')
+        if campos_faltantes:
+            error = "Faltan datos obligatorios para registrar el ingreso: " + ', '.join(campos_faltantes)
+            return render(request, 'control.html', {
+                'registros': [],
+                'fact_num': '',
+                'message': message,
+                'error': error,
+                'empresas': empresas,
+            })
 
-        # --- Convertir fecha_orden a formato YYYY-MM-DD HH:MM:SS.mmm para SQL Server ---
+        # Convertir fecha_orden a formato YYYY-MM-DD HH:MM:SS.mmm para SQL Server
         from datetime import datetime
         import pytz
         fecha_orden_sql = None
@@ -574,58 +591,19 @@ def control(request):
                     continue
         if not fecha_orden_sql:
             dt = datetime.now(venezuela_tz)
-            historial_qs = Historial.objects.all().order_by('-fecha_hora')
-            buscar_historial = request.GET.get('buscar_historial', '').strip()
-            if buscar_historial:
-                from django.db.models import Q
-                historial_qs = historial_qs.filter(
-                    Q(numero_orden__icontains=buscar_historial) |
-                    Q(placa_vehiculo__icontains=buscar_historial) |
-                    Q(descripcion__icontains=buscar_historial)
-                )
 
-        # --- NUEVO: obtener fecha/hora actual e IP para el registro de transporte ---
-        fecha_ingreso = datetime.now(venezuela_tz).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        ip_ingreso = request.META.get('REMOTE_ADDR', '')
-
-        # --- Obtener datos completos de cada entidad desde ceres_romana ---
+        # Obtener datos completos de cada entidad desde ceres_romana
         empresa_id, empresa_nombre = ctrl.get_empresa_by_rif(empresa_rif)
         vehiculo_id, vehiculo_nombre = ctrl.get_vehiculo_by_placa(vehiculo_placa)
         vehiculo_remolque_id, vehiculo_remolque_nombre = ctrl.get_vehiculo_remolque_by_placa(vehiculo_remolque_placa)
         conductor_id, conductor_nombre, conductor_apellido = ctrl.get_conductor_by_cedula(conductor_cedula)
         destino_id = ctrl.get_destino_id_by_name(destino_nombre)
 
-        # --- DATOS DE PRODUCTO: obtener campo8 y producto_id (desde reng_info o fallback POST) ---
-        producto_codigo = None
-        producto_id = None
-        peso = 0
-        campo8 = reng_info.get('campo8') if reng_info else None
-        producto_codigo = campo8
-        producto_id_db = None
-        if campo8:
-            producto_id_db = ctrl.lookup_producto_id_by_codigo(campo8)
-        if not producto_id_db:
-            producto_id_db = request.POST.get('producto_id')
-        producto_id = producto_id_db
-
-        # --- Validar que producto_id y producto_codigo existan antes de continuar ---
-        if not producto_id or not producto_codigo or not reng_num or not co_art:
-            error = "No se encontró el ID de producto, el código de producto (campo 8) o el renglón seleccionado. Debe seleccionar el producto específico de la orden para registrar."
-            return render(request, 'control.html', {
-                'registros': [],
-                'fact_num': '',
-                'message': message,
-                'error': error,
-                'empresas': empresas,
-            })
-        # Solo se registra el producto/renglón seleccionado
-
-        # --- Obtener Orden_Id desde la tabla orden_profit ---
+        # Obtener Orden_Id desde la tabla orden_profit
         orden_id = ctrl.get_orden_id(fact_num)
 
-        # --- Inserción en Orden_Profit_Transporte_Insert ---
+        # Inserción en Orden_Profit_Transporte_Insert SOLO con producto_id y producto_codigo
         try:
-            # Preparar parámetros del producto para la inserción
             producto_codigo_final = producto_codigo
             producto_id_final = producto_id
             orden_id_param = orden_id if orden_id is not None else 0
@@ -659,29 +637,13 @@ def control(request):
                 'empresas': empresas,
             })
 
-        # --- Guardar en historial si hay placa y número de orden ---
+        # Guardar en historial si hay placa y número de orden
         try:
-            pendiente_hist = None
-            producto_nombre_real = producto_nombre
-            try:
-                with connections['sqlserver'].cursor() as cursor:
-                    if reng_num and co_art:
-                        cursor.execute(
-                            "SELECT a.art_des, r.pendiente FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s AND r.reng_num = %s AND r.co_art = %s",
-                            [fact_num, reng_num, co_art]
-                        )
-                    else:
-                        cursor.execute(
-                            "SELECT TOP 1 a.art_des, r.pendiente FROM reng_ord r LEFT JOIN art a ON a.co_art = r.co_art WHERE r.fact_num = %s",
-                            [fact_num]
-                        )
-                    row = cursor.fetchone()
-                    if row:
-                        producto_nombre_real = row[0] or producto_nombre
-                        pendiente_hist = row[1]
-            except Exception:
-                pass
-            # Asegúrate de obtener la placa correctamente del POST
+            producto_nombre_real = ''
+            for r in ctrl.get_registros([fact_num])[0]:
+                if str(r['producto_id']) == str(producto_id):
+                    producto_nombre_real = r['art_des'] or r['descrip']
+                    break
             vehiculo_placa_hist = request.POST.get('vehiculo', '').strip()
             if vehiculo_placa_hist and fact_num:
                 existe = Historial.objects.filter(
@@ -689,27 +651,18 @@ def control(request):
                     numero_orden=fact_num,
                     descripcion=producto_nombre_real
                 ).order_by('-fecha_hora').first()
-                # Solo guarda si no existe uno igual con el mismo pendiente
-                pendiente_hist_val = pendiente_hist
-                if pendiente_hist_val is not None:
-                    try:
-                        pendiente_hist_val = float(pendiente_hist_val)
-                    except Exception:
-                        pendiente_hist_val = pendiente_hist
-                if not existe or (existe and existe.pendiente != pendiente_hist_val):
+                if not existe:
                     Historial.objects.create(
                         placa_vehiculo=vehiculo_placa_hist,
                         numero_orden=fact_num,
                         descripcion=producto_nombre_real,
-                        pendiente=pendiente_hist
+                        pendiente=None
                     )
         except Exception as e:
             error = f"Error al guardar en historial: {str(e)}"
 
-        # --- REDIRECT después de procesar el formulario para evitar reenvío al recargar ---
-        # Puedes pasar fact_num como parámetro GET si quieres mostrar el resultado de la orden recién registrada
+        # REDIRECT después de procesar el formulario para evitar reenvío al recargar
         fact_num = request.POST.get('validar_fact_num', '')
-        # Puedes agregar más parámetros si lo necesitas
         return HttpResponseRedirect(f"{reverse('control')}?fact_num={fact_num}")
 
     # --- Historial de ingresos con paginación y filtros (esto debe ir antes de la consulta de órdenes) ---
