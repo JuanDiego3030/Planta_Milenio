@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <title>Reporte de Personal</title>
     <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; }
+        @page {
+            size: A4 landscape;
+            margin: 1.5cm;
+        }
+        body { font-family: Arial, sans-serif; font-size: 13px; }
         table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-        th, td { border: 1px solid #333; padding: 4px; text-align: left; }
-        th { background: #eee; }
-        h2 { margin-bottom: 0; }
-        .fecha { font-size: 11px; color: #555; }
+        th, td { border: 1px solid #333; padding: 7px 6px; text-align: left; font-size: 12px; }
+        th { background: #eee; font-size: 13px; }
+        h2 { margin-bottom: 0; font-size: 18px; }
+        .fecha { font-size: 12px; color: #555; }
     </style>
 </head>
 <body>
@@ -27,6 +31,10 @@
                 <th>Empresa</th>
                 <th>Motivo de ingreso</th>
                 <th>Placa</th>
+                <th>Autorizado por</th>
+                <th>Estado</th>
+                <th>A quién visita</th>
+                <th>Duración (min)</th>
                 <th>Hora entrada</th>
                 <th>Hora salida</th>
             </tr>
@@ -40,6 +48,10 @@
                 <td>{{ e.empresa|default_if_none:"" }}</td>
                 <td>{{ e.motivo_ingreso }}</td>
                 <td>{{ e.placa_vehiculo|default_if_none:"" }}</td>
+                <td>{{ e.autorizado_por|default_if_none:"" }}</td>
+                <td>{{ e.estado_visita|title }}</td>
+                <td>{{ e.a_quien_visita|default_if_none:"" }}</td>
+                <td>{% if e.tiempo_visita is not None %}{{ e.tiempo_visita }}{% else %}-{% endif %}</td>
                 <td>{{ e.hora_entrada|date:"Y-m-d H:i:s" }}</td>
                 <td>{% if e.hora_salida %}{{ e.hora_salida|date:"Y-m-d H:i:s" }}{% else %}-{% endif %}</td>
             </tr>

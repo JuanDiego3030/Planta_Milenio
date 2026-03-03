@@ -23,6 +23,13 @@
         .card-header.busqueda-header strong { color: #fff !important; }
         .btn-cargar-datos { background: #4da3ff !important; color: #fff !important; border: none; }
         .btn-cargar-datos:hover, .btn-cargar-datos:focus { background: #339cff !important; color: #fff !important; }
+        /* Asegura que el modal esté por encima del navbar */
+        .modal {
+            z-index: 2000;
+        }
+        .modal-backdrop {
+            z-index: 1999;
+        }
     </style>
     {% endblock %}
 
@@ -81,17 +88,18 @@
                                     <td>{{ r.Conductor_Nombre }} {{ r.Conductor_Apellido }}</td>
                                     <td>
                                         <!-- Botón para abrir modal de edición -->
-                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editarModal{{ r.Orden_Transporte_Id }}">
-                                            Editar
-                                        </button>
-                                        <form method="post" action="" style="display:inline;">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="registro_id" value="{{ r.Orden_Transporte_Id }}">
-                                            <button type="submit" name="eliminar_registro" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar este registro?');">Eliminar</button>
-                                        </form>
+                                            {# Eliminación deshabilitada #}
+                                            {% if not r.Pesada_Id %}
+                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editarModal{{ r.Orden_Transporte_Id }}">
+                                                    Editar
+                                                </button>
+                                            {% else %}
+                                                <span class="text-muted">No editable</span>
+                                            {% endif %}
                                     </td>
                                 </tr>
                                 <!-- Modal de edición para este registro -->
+                                {% if not r.Pesada_Id %}
                                 <div class="modal fade" id="editarModal{{ r.Orden_Transporte_Id }}" tabindex="-1" aria-labelledby="editarModalLabel{{ r.Orden_Transporte_Id }}" aria-hidden="true">
                                     <div class="modal-dialog">
                                         <div class="modal-content">
@@ -124,9 +132,21 @@
                                                         <div class="list-group position-absolute w-100" id="remolqueList{{ r.Orden_Transporte_Id }}"></div>
                                                     </div>
                                                     <div class="mb-2">
-                                                        <label class="form-label">Destino</label>
+                                                        <label class="form-label">Origen</label>
                                                         <input type="text" name="campo_Destino_Nombre" value="{{ r.Destino_Nombre }}" class="form-control" id="destinoInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
                                                         <div class="list-group position-absolute w-100" id="destinoList{{ r.Orden_Transporte_Id }}"></div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label">Producto</label>
+                                                        <select class="form-select" id="productoSelect{{ r.Orden_Transporte_Id }}" name="campo_Producto_Id" required>
+                                                            <option value="" selected disabled>Seleccione...</option>
+                                                            {% for p in r.productos_orden %}
+                                                                <option value="{{ p.id }}" data-codigo="{{ p.codigo }}" {% if p.codigo == r.Producto_Codigo or p.id == r.Producto_Id %}selected{% endif %}>
+                                                                    {{ p.nombre }} (Código: {{ p.codigo }})
+                                                                </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                        <input type="hidden" name="campo_Producto_Codigo" id="productoCodigoHidden{{ r.Orden_Transporte_Id }}" value="{{ r.Producto_Codigo }}">
                                                     </div>
                                                     <!-- Datos ocultos para mantener integridad -->
                                                     <input type="hidden" name="registro_id" value="{{ r.Orden_Transporte_Id }}">
@@ -139,6 +159,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                {% endif %}
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -288,6 +309,15 @@
                 function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
             setupAutocomplete('destinoInput{{ r.Orden_Transporte_Id }}', 'destinoList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_destino" %}', 
                 function(item) { return item.nombre; }, function(item) { return item.nombre; });
+            // Actualizar campo oculto producto_codigo al cambiar el select
+            var select = document.getElementById('productoSelect{{ r.Orden_Transporte_Id }}');
+            var productoCodigoHidden = document.getElementById('productoCodigoHidden{{ r.Orden_Transporte_Id }}');
+            if (select && productoCodigoHidden) {
+                select.addEventListener('change', function() {
+                    var selected = select.options[select.selectedIndex];
+                    productoCodigoHidden.value = selected.getAttribute('data-codigo');
+                });
+            }
         {% endfor %}
     });
     </script>

@@ -1,4 +1,3 @@
-
 from django.urls import path
 
 from . import views
@@ -14,12 +13,14 @@ urlpatterns = [
     path('login/', views.login, name='login'),
     path('control/', views.control, name='control'),
     path('autocomplete/persona/empresa/', views.autocomplete_persona_empresa, name='autocomplete_persona_empresa'),
+    path('autocomplete/persona/autorizado_por/', views.autocomplete_persona_autorizado_por, name='autocomplete_persona_autorizado_por'),
     path('control_personas/', views.control_personas, name='control_personas'),
     path('autocomplete/empresa/', views.autocomplete_empresa, name='autocomplete_empresa'),
     path('autocomplete/chuto/', views.autocomplete_chuto, name='autocomplete_chuto'),
     path('autocomplete/tanque/', views.autocomplete_tanque, name='autocomplete_tanque'),
     path('autocomplete/destino/', views.autocomplete_destino, name='autocomplete_destino'),
     path('autocomplete/conductor/', views.autocomplete_conductor, name='autocomplete_conductor'),
+    path('autocomplete/producto/', views.autocomplete_producto, name='autocomplete_producto'),
     path('reporte_historial/', views.reporte_historial, name='reporte_historial'),
     path('reportes/', views.reportes, name='reportes'),
     path('logout/', views.logout, name='logout'),

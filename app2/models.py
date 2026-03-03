@@ -31,11 +31,15 @@ class Historial(models.Model):
 
 
 class AccesoPersona(models.Model):
+    tiempo_visita = models.PositiveIntegerField(null=True, blank=True, help_text="Duración de la visita en minutos")
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100, blank=True)
     cedula = models.CharField(max_length=50)
     empresa = models.CharField(max_length=255, blank=True, null=True)  # Nuevo campo empresa
     motivo_ingreso = models.CharField(max_length=255, blank=True, null=True)  # Nuevo campo
+    autorizado_por = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre de quien autorizó el ingreso")
+    estado_visita = models.CharField(max_length=10, choices=[('aprobada', 'Aprobada'), ('negada', 'Negada')], default='aprobada', help_text="Estado de la visita: aprobada o negada")
+    a_quien_visita = models.CharField(max_length=100, blank=True, null=True, help_text="Persona a quien visita")
     hora_entrada = models.DateTimeField(auto_now_add=True)
     hora_salida = models.DateTimeField(null=True, blank=True)  # Nuevo campo para salida
     placa_vehiculo = models.CharField(max_length=20, null=True, blank=True)

@@ -94,14 +94,19 @@ class ControlDeMateriaPrima:
         return AccesoPersona.objects.filter(id=acceso_id, hora_salida__isnull=True).update(hora_salida=timezone.now())
 
     # CRUD para AccesoPersona
-    def crear_acceso_persona(self, nombre, apellido, cedula, motivo_ingreso, placa_vehiculo=None, empresa=None):
+    def crear_acceso_persona(self, nombre, apellido, cedula, motivo_ingreso, placa_vehiculo=None, empresa=None, autorizado_por=None, estado_visita='aprobada', a_quien_visita=None, tiempo_visita=None, hora_salida=None):
         return AccesoPersona.objects.create(
             nombre=nombre,
             apellido=apellido,
             cedula=cedula,
             empresa=empresa,
             motivo_ingreso=motivo_ingreso,
-            placa_vehiculo=placa_vehiculo
+            placa_vehiculo=placa_vehiculo,
+            autorizado_por=autorizado_por,
+            estado_visita=estado_visita,
+            a_quien_visita=a_quien_visita,
+            tiempo_visita=tiempo_visita,
+            hora_salida=hora_salida
         )
 
     def listar_accesos_persona(self, limite=100):

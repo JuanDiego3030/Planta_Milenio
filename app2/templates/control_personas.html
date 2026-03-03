@@ -8,6 +8,12 @@
     <style>
         .main-content { min-height: 60vh; }
         .form-inline-row .form-control { min-width: 180px; }
+                .modal {
+            z-index: 2000;
+        }
+        .modal-backdrop {
+            z-index: 1999;
+        }
     </style>
     {% endblock %}
 
@@ -47,6 +53,21 @@
                 <input type="text" name="placa" class="form-control">
               </div>
               <div class="col-md-2">
+                <label class="form-label">Autorizado por</label>
+                <input type="text" name="autorizado_por" class="form-control" autocomplete="off">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Estado de la visita</label>
+                <select name="estado_visita" class="form-control">
+                  <option value="aprobada">Aprobada</option>
+                  <option value="negada">Negada</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">A quién visita</label>
+                <input type="text" name="a_quien_visita" class="form-control" autocomplete="off">
+              </div>
+              <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Registrar entrada</button>
               </div>
             </form>
@@ -81,7 +102,11 @@
                     <th>Empresa</th>
                     <th>Motivo de ingreso</th>
                     <th>Placa</th>
+                    <th>Autorizado por</th>
                     <th>Hora salida</th>
+                    <th>Duración (min)</th>
+                    <th>Estado</th>
+                    <th>A quién visita</th>
                     <th>Acción</th>
                   </tr>
                 </thead>
@@ -96,7 +121,11 @@
                       <td>{{ h.empresa|default_if_none:"" }}</td>
                       <td>{{ h.motivo_ingreso }}</td>
                       <td>{{ h.placa_vehiculo|default_if_none:"" }}</td>
+                      <td>{{ h.autorizado_por|default_if_none:"" }}</td>
                       <td>{% if h.hora_salida %}{{ h.hora_salida|date:"Y-m-d H:i:s" }}{% else %}-{% endif %}</td>
+                      <td>{% if h.tiempo_visita is not None %}{{ h.tiempo_visita }}{% else %}-{% endif %}</td>
+                      <td>{{ h.estado_visita|title }}</td>
+                      <td>{{ h.a_quien_visita|default_if_none:"" }}</td>
                       <td>
                         {% if not h.hora_salida %}
                           <form method="post" action="{% url 'control_personas' %}" style="display:inline;">
@@ -203,6 +232,7 @@
       setupAutocomplete('input[name="cedula"]', '/autocomplete/persona/cedula/');
       setupAutocomplete('input[name="placa"]', '/autocomplete/persona/placa/');
       setupAutocomplete('input[name="empresa"]', '/autocomplete/persona/empresa/');
+      setupAutocomplete('input[name="autorizado_por"]', '/autocomplete/persona/autorizado_por/');
     });
     </script>
     {% endblock %}

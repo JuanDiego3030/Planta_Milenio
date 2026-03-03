@@ -1,6 +1,42 @@
+from django.views.decorators.http import require_GET
+from django.utils import timezone
+from django.db import connections
 from .crud import ControlAuditoria
+from .crud import ControlUsuarios
+from django.views.decorators.cache import never_cache
+from weasyprint import HTML
+from django.template.loader import render_to_string
+from django.views.decorators.http import require_GET
+from django.utils import timezone
+from django.views.decorators.cache import never_cache
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.hashers import check_password
+from .models import User_admin, Historial, AccesoPersona
+from django.http import JsonResponse
+from django.db import connections
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+import datetime
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.views.decorators.cache import never_cache
+from .crud import ControlDeMateriaPrima
+ctrl = ControlDeMateriaPrima()
 
-# Vista de auditoría de transportes (orden_profit_transporte)
+@require_GET
+def autocomplete_persona_autorizado_por(request):
+    q = request.GET.get('q', '').strip()
+    from .models import AccesoPersona
+    # Buscar valores únicos de autorizado_por que contengan el texto buscado
+    autorizados = AccesoPersona.objects.filter(autorizado_por__icontains=q).values_list('autorizado_por', flat=True).distinct()
+    # Filtrar nulos y vacíos
+    autorizados = [a for a in autorizados if a]
+    # Limitar resultados
+    autorizados = autorizados[:10]
+    return JsonResponse(list(autorizados), safe=False)
+
 def auditoria(request):
     """Vista para ver, editar y borrar registros de orden_profit_transporte."""
     user_id = request.session.get('user_admin_id')
@@ -23,54 +59,73 @@ def auditoria(request):
         messages.error(request, 'No tiene permiso para acceder a la auditoría.')
         from django.shortcuts import redirect
         return redirect('login')
+
+    # Para cada registro, obtener los productos de los renglones de la orden de compra
     ctrl = ControlAuditoria()
     from django.contrib import messages
     error = None
     message = None
-    # Borrar registro por SQL directo (solo si no es solo consulta)
-    if request.method == 'POST' and 'eliminar_registro' in request.POST:
-        if user.solo_consulta:
-            from django.contrib import messages
-            messages.error(request, 'No tiene permiso para eliminar registros en auditoría.')
-            from django.shortcuts import redirect
-            return redirect('auditoria')
-        registro_id = request.POST.get('registro_id')
-        if registro_id:
-            try:
-                from django.db import connections
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute("DELETE FROM orden_profit_transporte WHERE Orden_Transporte_Id = %s", [registro_id])
-                messages.success(request, 'Registro eliminado correctamente.')
-            except Exception as e:
-                messages.error(request, f'Error al eliminar: {str(e)}')
-            from django.shortcuts import redirect
-            return redirect('auditoria')
+    ctrl = ControlAuditoria()
+    from django.contrib import messages
+    error = None
+    message = None
+    # Eliminación deshabilitada
 
-    # Editar registro por SQL directo (solo si no es solo consulta)
+    # Editar registro por SQL directo (solo si no es solo consulta y no tiene Pesada_Id)
     if request.method == 'POST' and 'editar_registro' in request.POST:
         if user.solo_consulta:
-            from django.contrib import messages
-            messages.error(request, 'No tiene permiso para editar registros en auditoría.')
-            from django.shortcuts import redirect
+            messages.error(request, 'No tiene permisos para editar registros.')
             return redirect('auditoria')
         registro_id = request.POST.get('registro_id')
         campos = {}
-        for campo in request.POST:
-            if campo.startswith('campo_'):
-                nombre = campo.replace('campo_', '')
-                campos[nombre] = request.POST[campo]
-        if registro_id and campos:
-            try:
-                from django.db import connections
-                set_clause = ', '.join([f"{k} = %s" for k in campos.keys()])
-                values = list(campos.values())
-                values.append(registro_id)
-                with connections['ceres_romana'].cursor() as cursor:
-                    cursor.execute(f"UPDATE orden_profit_transporte SET {set_clause} WHERE Orden_Transporte_Id = %s", values)
+        # --- PRODUCTO ---
+        producto_codigo = request.POST.get('campo_Producto_Codigo', '').strip()
+        if producto_codigo:
+            # Buscar el id y nombre del producto
+            with connections['ceres_romana'].cursor() as cursor:
+                cursor.execute("SELECT TOP 1 Producto_Id, Producto_Nombre FROM PRODUCTO WHERE Producto_Codigo = %s", [producto_codigo])
+                row = cursor.fetchone()
+                if row:
+                    campos['Producto_Codigo'] = producto_codigo
+                    campos['Producto_Id'] = row[0]
+                    campos['Producto_Nombre'] = row[1]
+        # --- EMPRESA ---
+        empresa_rif = request.POST.get('campo_Empresa_Rif', '').strip()
+        if empresa_rif:
+            campos['Empresa_Rif'] = empresa_rif
+        # --- CONDUCTOR ---
+        conductor_cedula = request.POST.get('campo_Conductor_Cedula', '').strip()
+        if conductor_cedula:
+            campos['Conductor_Cedula'] = conductor_cedula
+        # --- VEHICULO ---
+        vehiculo_placa = request.POST.get('campo_Vehiculo_Placa', '').strip()
+        if vehiculo_placa:
+            campos['Vehiculo_Placa'] = vehiculo_placa
+        # --- REMOLQUE ---
+        remolque_placa = request.POST.get('campo_Vehiculo_Remolque_Placa', '').strip()
+        if remolque_placa:
+            campos['Vehiculo_Remolque_Placa'] = remolque_placa
+        # --- DESTINO ---
+        destino_nombre = request.POST.get('campo_Destino_Nombre', '').strip()
+        if destino_nombre:
+            campos['Destino_Nombre'] = destino_nombre
+        # Verificar si el registro tiene Pesada_Id
+        puede_editar = True
+        if registro_id:
+            ctrl_aud = ControlAuditoria()
+            registro = ctrl_aud.obtener_registro(registro_id)
+            if registro and registro.get('Pesada_Id'):
+                puede_editar = False
+        if registro_id and campos and puede_editar:
+            ctrl_aud = ControlAuditoria()
+            actualizado = ctrl_aud.actualizar_registro(registro_id, **campos)
+            if actualizado:
                 messages.success(request, 'Registro actualizado correctamente.')
-            except Exception as e:
-                messages.error(request, f'Error al actualizar: {str(e)}')
-            from django.shortcuts import redirect
+            else:
+                messages.warning(request, 'No se pudo actualizar el registro.')
+            return redirect('auditoria')
+        elif registro_id and not puede_editar:
+            messages.error(request, 'No se puede editar este registro porque ya tiene Pesada_Id.')
             return redirect('auditoria')
     # Buscador: filtrar por número de orden, placa de vehículo o conductor
     termino_busqueda = request.GET.get('buscar', '').strip()
@@ -84,10 +139,26 @@ def auditoria(request):
             termino in str(r.get('Conductor_Apellido', '')).lower() or
             termino in str(r.get('Conductor_Cedula', '')).lower()
         )]
+    # Para cada registro, obtener productos de los renglones de la orden
+    registros_con_productos = []
+    for r in registros:
+        productos_orden = []
+        orden_id = r.get('Numero_Orden') or r.get('Orden')
+        if orden_id:
+            with connections['ceres_romana'].cursor() as cursor:
+                cursor.execute("SELECT Producto_Id, Producto_Codigo, Producto_Nombre FROM orden_profit WHERE Orden = %s", [orden_id])
+                productos_vistos = set()
+                for row in cursor.fetchall():
+                    pid, pcodigo, pnombre = row
+                    if pcodigo not in productos_vistos:
+                        productos_orden.append({'id': pid, 'codigo': pcodigo, 'nombre': pnombre})
+                        productos_vistos.add(pcodigo)
+        r['productos_orden'] = productos_orden
+        registros_con_productos.append(r)
     # Paginación de registros de Romana
     from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
     page = request.GET.get('page', 1)
-    paginator = Paginator(registros, 10)
+    paginator = Paginator(registros_con_productos, 10)
     try:
         registros_pagina = paginator.page(page)
     except PageNotAnInteger:
@@ -104,9 +175,7 @@ def auditoria(request):
         'buscar': termino_busqueda,
         'user_admin': user,
     })
-from .crud import ControlUsuarios
-# Vista para gestión de usuarios
-from django.views.decorators.cache import never_cache
+
 @never_cache
 def control_usuarios(request):
     user_id = request.session.get('user_admin_id')
@@ -236,8 +305,7 @@ def control_usuarios(request):
         'paginator': paginator,
         'page_obj': usuarios,
     })
-from weasyprint import HTML
-from django.template.loader import render_to_string
+
 def reporte_pdf_materia_prima(request):
     """Genera PDF de entradas de materia prima según filtros de fecha."""
     user_id = request.session.get('user_admin_id')
@@ -310,10 +378,6 @@ def reporte_pdf_personal(request):
     response = HttpResponse(pdf_file, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reporte_personal.pdf"'
     return response
-
-
-from django.views.decorators.http import require_GET
-from django.utils import timezone
 
 def reportes(request):
     """
@@ -457,25 +521,21 @@ def autocomplete_persona_placa(request):
                   .values_list('placa_vehiculo', flat=True).distinct()[:10])
         results = list(placas)
     return JsonResponse(results, safe=False)
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth.hashers import check_password
-from .models import User_admin, Historial, AccesoPersona
-from django.http import JsonResponse
-from django.db import connections
-from django.template.loader import render_to_string
-from django.http import HttpResponse
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-import datetime
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-from django.views.decorators.cache import never_cache
-from .crud import ControlDeMateriaPrima
 
-# Instancia reutilizable para operaciones DB
-ctrl = ControlDeMateriaPrima()
-
-
+@never_cache
+@require_GET
+def autocomplete_producto(request):
+    q = request.GET.get('q', '').strip()
+    results = []
+    if q:
+        with connections['ceres_romana'].cursor() as cursor:
+            cursor.execute(
+                "SELECT TOP 10 Producto_Id, Producto_Codigo, Producto_Nombre FROM PRODUCTO WHERE Producto_Codigo LIKE %s OR Producto_Nombre LIKE %s ORDER BY Producto_Nombre",
+                [f"%{q}%", f"%{q}%"]
+            )
+            for row in cursor.fetchall():
+                results.append({'id': row[0], 'codigo': row[1], 'nombre': row[2]})
+    return JsonResponse(results, safe=False)
 
 def login(request):
     if request.method == 'POST':
@@ -891,7 +951,6 @@ def logout(request):
     messages.success(request, 'Has cerrado sesión exitosamente.')
     return redirect('login')
 
-
 @never_cache
 def control_personas(request):
     """Vista para control de acceso de personas: muestra formulario y lista de accesos recientes.
@@ -935,11 +994,19 @@ def control_personas(request):
         salida_id = request.POST.get('salida_id')
         if salida_id:
             try:
-                updated = ctrl.registrar_salida_persona(salida_id)
-                if updated:
-                    messages.success(request, 'Salida registrada correctamente.')
+                # Solo registrar salida si la visita fue aprobada
+                acceso = AccesoPersona.objects.filter(id=salida_id).first()
+                if acceso and acceso.estado_visita == 'aprobada':
+                    from django.utils import timezone
+                    hora_salida = timezone.now()
+                    tiempo_visita = int((hora_salida - acceso.hora_entrada).total_seconds() // 60)
+                    updated = AccesoPersona.objects.filter(id=salida_id, hora_salida__isnull=True).update(hora_salida=hora_salida, tiempo_visita=tiempo_visita)
+                    if updated:
+                        messages.success(request, 'Salida registrada correctamente.')
+                    else:
+                        messages.warning(request, 'La salida ya estaba registrada o el registro no existe.')
                 else:
-                    messages.warning(request, 'La salida ya estaba registrada o el registro no existe.')
+                    messages.warning(request, 'No se puede registrar salida para una visita negada.')
             except Exception as e:
                 messages.error(request, f'Error al registrar salida: {str(e)}')
             return redirect('control_personas')
@@ -950,6 +1017,16 @@ def control_personas(request):
         empresa = request.POST.get('empresa', '').strip()
         motivo_ingreso = request.POST.get('motivo_ingreso', '').strip()
         placa = request.POST.get('placa', '').strip()
+        autorizado_por = request.POST.get('autorizado_por', '').strip()
+        estado_visita = request.POST.get('estado_visita', 'aprobada').strip()
+        a_quien_visita = request.POST.get('a_quien_visita', '').strip()
+
+        from django.utils import timezone
+        hora_salida_auto = None
+        tiempo_visita = None
+        if estado_visita == 'negada':
+            hora_salida_auto = timezone.now()
+            tiempo_visita = 0
 
         if not nombre or not cedula or not motivo_ingreso:
             messages.error(request, 'Nombre, cédula y motivo de ingreso son obligatorios.')
@@ -962,7 +1039,12 @@ def control_personas(request):
                 cedula=cedula,
                 empresa=empresa,
                 motivo_ingreso=motivo_ingreso,
-                placa_vehiculo=placa if placa else None
+                placa_vehiculo=placa if placa else None,
+                autorizado_por=autorizado_por if autorizado_por else None,
+                estado_visita=estado_visita,
+                a_quien_visita=a_quien_visita if a_quien_visita else None,
+                tiempo_visita=tiempo_visita,
+                hora_salida=hora_salida_auto
             )
             messages.success(request, 'Entrada registrada correctamente.')
         except Exception as e:
