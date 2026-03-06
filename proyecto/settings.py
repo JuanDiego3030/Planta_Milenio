@@ -72,7 +72,7 @@ DATABASES = {
     },
     'sqlserver': {
         'ENGINE': 'mssql',
-        'NAME': 'AGRBSS_A',
+        'NAME': 'agro_pru',
         'USER': 'profit',
         'PASSWORD': 'profit',
         'HOST': '10.10.1.1', 
@@ -89,7 +89,7 @@ DATABASES = {
         'NAME': 'ceres_romana',
         'USER': 'profit',
         'PASSWORD': 'profit',
-        'HOST': '10.10.2.3',
+        'HOST': '10.10.1.1',
         'PORT': '1433',        
         'OPTIONS': {
             'driver': 'FreeTDS',
