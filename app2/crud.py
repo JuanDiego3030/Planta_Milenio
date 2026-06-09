@@ -1,4 +1,7 @@
 from django.db import connections
+import logging
+
+logger = logging.getLogger(__name__)
 
 # --- CRUD para auditoría de orden_profit_transporte ---
 class ControlAuditoria:
@@ -12,7 +15,36 @@ class ControlAuditoria:
                 cursor.execute(sql)
                 cols = [col[0] for col in cursor.description]
                 for row in cursor.fetchall():
-                    registros.append(dict(zip(cols, row)))
+                    rec = dict(zip(cols, row))
+                    # Normalizar Pesada_Id: convertir '0' o b'0' o '' a integer 0
+                    pesada_keys = [k for k in rec.keys() if 'pesada' in k.lower()]
+                    pesada_val = None
+                    if pesada_keys:
+                        pesada_raw = rec.get(pesada_keys[0])
+                        try:
+                            # manejar bytes
+                            if isinstance(pesada_raw, (bytes, bytearray)):
+                                pesada_raw = pesada_raw.decode(errors='ignore')
+                            if pesada_raw is None:
+                                pesada_val = 0
+                            elif isinstance(pesada_raw, str) and pesada_raw.strip() == '':
+                                pesada_val = 0
+                            else:
+                                pesada_val = int(pesada_raw)
+                        except Exception:
+                            # si no se puede convertir, dejar el valor original
+                            pesada_val = pesada_raw
+                    else:
+                        pesada_val = 0
+                    rec['Pesada_Id'] = pesada_val
+                    # Asegurar que exista Orden_Transporte_Id (variantes de nombre)
+                    transporte_keys = [k for k in rec.keys() if 'transporte' in k.lower() or 'transporte_id' in k.lower() or 'transporteid' in k.lower()]
+                    if transporte_keys:
+                        rec['Orden_Transporte_Id'] = rec.get(transporte_keys[0])
+                    elif 'transporte_id' in rec:
+                        rec['Orden_Transporte_Id'] = rec.get('transporte_id')
+                    # Añadir registro normalizado
+                    registros.append(rec)
         except Exception as e:
             print(f"Error en listar_registros: {e}")
         return registros
@@ -30,17 +62,124 @@ class ControlAuditoria:
         return None
 
     def actualizar_registro(self, registro_id, **kwargs):
-        if not kwargs:
-            return 0
-        set_clause = ', '.join([f"{k} = %s" for k in kwargs.keys()])
-        values = list(kwargs.values())
-        values.append(registro_id)
+        """Actualizar registro usando el stored procedure Orden_Profit_Transporte_Update.
+
+        Se intenta construir los parámetros mínimos necesarios a partir del registro
+        actual y de los `kwargs` provistos. Devuelve el valor de salida `@exito`
+        devuelto por el SP (int) o 0 en caso de error.
+        """
         try:
+            registro_actual = self.obtener_registro(registro_id) or {}
+            if not registro_actual:
+                logger.debug("registro no encontrado para id=%s", registro_id)
+                return 0
+
+            # No permitir edición si el registro ya tiene Pesada_Id
+            pesada_val = registro_actual.get('Pesada_Id')
+            if pesada_val is not None and pesada_val != 0:
+                return 0
+
+            # Valores base tomando preferencia por kwargs sobre el registro actual
+            orden_id = kwargs.get('Orden_Id') or registro_actual.get('Orden_Id')
+            orden = kwargs.get('Orden') or registro_actual.get('Orden') or ''
+
+            producto_codigo = kwargs.get('Producto_Codigo') or registro_actual.get('Producto_Codigo') or ''
+            producto_id = kwargs.get('Producto_Id')
+            # Si no se proporcionó Producto_Id, intentar buscar por código
+            if not producto_id and producto_codigo:
+                producto_id = ControlDeMateriaPrima().lookup_producto_id_by_codigo(producto_codigo)
+
+            pesada_id = kwargs.get('Pesada_Id') if 'Pesada_Id' in kwargs else registro_actual.get('Pesada_Id')
+
+            empresa_rif = kwargs.get('Empresa_Rif') or registro_actual.get('Empresa_Rif') or ''
+            empresa_nombre = kwargs.get('Empresa_Nombre') or registro_actual.get('Empresa_Nombre') or ''
+            empresa_id = kwargs.get('Empresa_Id') or registro_actual.get('Empresa_Id') or 0
+
+            vehiculo_placa = kwargs.get('Vehiculo_Placa') or registro_actual.get('Vehiculo_Placa') or ''
+            vehiculo_id = kwargs.get('Vehiculo_id')
+            if not vehiculo_id and vehiculo_placa:
+                vehiculo_id, _ = ControlDeMateriaPrima().get_vehiculo_by_placa(vehiculo_placa)
+
+            veh_rem_placa = kwargs.get('Vehiculo_Remolque_Placa') or registro_actual.get('Vehiculo_Remolque_Placa') or None
+            veh_rem_id = kwargs.get('Vehiculo_Remolque_id')
+            if not veh_rem_id and veh_rem_placa:
+                veh_rem_id, _ = ControlDeMateriaPrima().get_vehiculo_remolque_by_placa(veh_rem_placa)
+
+            conductor_cedula = kwargs.get('Conductor_Cedula') or registro_actual.get('Conductor_Cedula') or ''
+            conductor_id = kwargs.get('Conductor_Id')
+            conductor_nombre = kwargs.get('Conductor_Nombre') or registro_actual.get('Conductor_Nombre') or ''
+            conductor_apellido = kwargs.get('Conductor_Apellido') or registro_actual.get('Conductor_Apellido') or ''
+            if not conductor_id and conductor_cedula:
+                conductor_id, conductor_nombre, conductor_apellido = ControlDeMateriaPrima().get_conductor_by_cedula(conductor_cedula)
+
+            destino_nombre = kwargs.get('Destino_Nombre') or registro_actual.get('Destino_Nombre') or ''
+            destino_id = kwargs.get('Destino_Id') or registro_actual.get('Destino_Id') or 0
+            if not destino_id and destino_nombre:
+                destino_id = ControlDeMateriaPrima().get_destino_id_by_name(destino_nombre)
+
+            # Ejecutar el stored procedure y obtener el valor de salida @exito
+            params = [
+                orden_id or 0,
+                registro_id,
+                orden,
+                producto_id or 0,
+                producto_codigo,
+                pesada_id,
+                empresa_id or 0,
+                empresa_rif,
+                empresa_nombre,
+                vehiculo_id or 0,
+                vehiculo_placa,
+                veh_rem_id,
+                veh_rem_placa,
+                conductor_id or 0,
+                conductor_cedula,
+                conductor_nombre,
+                conductor_apellido,
+                destino_id or 0,
+                destino_nombre
+            ]
+            logger.debug("orden_profit_transporte_update params=%s", params)
             with connections['ceres_romana'].cursor() as cursor:
-                cursor.execute(f"UPDATE orden_profit_transporte SET {set_clause} WHERE transporte_id = %s", values)
-                return cursor.rowcount
+                try:
+                    cursor.execute("""
+                        DECLARE @exito int;
+                        EXEC dbo.Orden_Profit_Transporte_Update @exito OUTPUT,
+                            @Orden_Id=%s,
+                            @Orden_Transporte_Id=%s,
+                            @Orden=%s,
+                            @Producto_Id=%s,
+                            @Producto_Codigo=%s,
+                            @Pesada_Id=%s,
+                            @Empresa_Id=%s,
+                            @Empresa_Rif=%s,
+                            @Empresa_Nombre=%s,
+                            @Vehiculo_id=%s,
+                            @Vehiculo_Placa=%s,
+                            @Vehiculo_Remolque_id=%s,
+                            @Vehiculo_Remolque_Placa=%s,
+                            @Conductor_Id=%s,
+                            @Conductor_Cedula=%s,
+                            @Conductor_Nombre=%s,
+                            @Conductor_Apellido=%s,
+                            @Destino_Id=%s,
+                            @Destino_Nombre=%s;
+                        SELECT @exito;
+                    """, params)
+                except Exception:
+                    logger.exception("Error ejecutando SP Orden_Profit_Transporte_Update")
+                    raise
+                row = cursor.fetchone()
+                logger.debug("SP Orden_Profit_Transporte_Update returned=%s", row)
+                if row:
+                    try:
+                        return int(row[0]) if row[0] is not None else 0
+                    except Exception:
+                        logger.exception("Error parseando valor devuelto por SP")
+                        return 0
         except Exception:
             return 0
+        return 0
 
     def eliminar_registro(self, registro_id):
         try:

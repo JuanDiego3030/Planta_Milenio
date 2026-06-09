@@ -1,3 +1,4 @@
+ # Se movio bien 2
 from django.views.decorators.http import require_GET
 from django.utils import timezone
 from django.db import connections
@@ -41,32 +42,24 @@ def auditoria(request):
     """Vista para ver, editar y borrar registros de orden_profit_transporte."""
     user_id = request.session.get('user_admin_id')
     if not user_id:
-        from django.contrib import messages
         messages.error(request, 'Debe iniciar sesión primero')
-        from django.shortcuts import redirect
         return redirect('login')
     try:
         from .models import User_admin
         user = User_admin.objects.get(id=user_id)
     except User_admin.DoesNotExist:
-        from django.contrib import messages
         messages.error(request, 'Usuario no encontrado')
-        from django.shortcuts import redirect
         return redirect('login')
     # Validar permiso de acceso a auditoría
     if not user.permiso_auditoria:
-        from django.contrib import messages
         messages.error(request, 'No tiene permiso para acceder a la auditoría.')
-        from django.shortcuts import redirect
         return redirect('login')
 
     # Para cada registro, obtener los productos de los renglones de la orden de compra
     ctrl = ControlAuditoria()
-    from django.contrib import messages
     error = None
     message = None
     ctrl = ControlAuditoria()
-    from django.contrib import messages
     error = None
     message = None
     # Eliminación deshabilitada
@@ -180,23 +173,17 @@ def auditoria(request):
 def control_usuarios(request):
     user_id = request.session.get('user_admin_id')
     if not user_id:
-        from django.contrib import messages
         messages.error(request, 'Debe iniciar sesión primero')
-        from django.shortcuts import redirect
         return redirect('login')
     try:
         from .models import User_admin
         user = User_admin.objects.get(id=user_id)
     except User_admin.DoesNotExist:
-        from django.contrib import messages
         messages.error(request, 'Usuario no encontrado')
-        from django.shortcuts import redirect
         return redirect('login')
     # Validar permiso de acceso a usuarios
     if not user.permiso_usuarios:
-        from django.contrib import messages
         messages.error(request, 'No tiene permiso para acceder a la gestión de usuarios.')
-        from django.shortcuts import redirect
         return redirect('login')
     ctrl = ControlUsuarios()
     error = None
@@ -204,9 +191,7 @@ def control_usuarios(request):
     # Restringir acciones CRUD si solo_consulta está activo
     if request.method == 'POST':
         if user.solo_consulta:
-            from django.contrib import messages
             messages.error(request, 'No tiene permisos para crear, editar o eliminar usuarios. Solo puede consultar.')
-            from django.shortcuts import redirect
             return redirect('control_usuarios')
         # Crear usuario
         if 'crear_usuario' in request.POST:
@@ -386,23 +371,17 @@ def reportes(request):
     """
     user_id = request.session.get('user_admin_id')
     if not user_id:
-        from django.contrib import messages
         messages.error(request, 'Debe iniciar sesión primero')
-        from django.shortcuts import redirect
         return redirect('login')
     try:
         from .models import User_admin
         user = User_admin.objects.get(id=user_id)
     except User_admin.DoesNotExist:
-        from django.contrib import messages
         messages.error(request, 'Usuario no encontrado')
-        from django.shortcuts import redirect
         return redirect('login')
     # Validar permiso de acceso a reportes
     if not user.permiso_reportes:
-        from django.contrib import messages
         messages.error(request, 'No tiene permiso para acceder a la vista de reportes.')
-        from django.shortcuts import redirect
         return redirect('login')
     
     tipo = request.GET.get('tipo', 'materia_prima')  # 'materia_prima' o 'personal'
@@ -607,29 +586,73 @@ def control(request):
         vehiculo_placa = request.POST.get('vehiculo')
         vehiculo_remolque_placa = request.POST.get('vehiculo_remolque')
         destino_nombre = request.POST.get('destino')
-        # Ahora los datos del producto seleccionado vienen del select y campos ocultos
-        producto_id = request.POST.get('producto_id')  # ID Producto
-        producto_codigo = request.POST.get('producto_codigo')  # Producto_Codigo de orden_profit
+        producto_id = request.POST.get('producto_id')
+        producto_codigo = request.POST.get('producto_codigo')
 
-        # Validar solo producto_id y producto_codigo (Producto_Codigo y ID Producto)
-        campos_faltantes = []
-        if not producto_id:
-            campos_faltantes.append('ID Producto (producto_id)')
-        if not producto_codigo:
-            campos_faltantes.append('Código de producto (producto_codigo)')
-        if not empresa_rif:
-            campos_faltantes.append('Empresa (RIF)')
-        if not conductor_cedula:
-            campos_faltantes.append('Conductor (cédula)')
+        # Permitir registrar cualquier orden de compra en el historial con fecha actual
+        campos_faltantes_historial = []
         if not vehiculo_placa:
-            campos_faltantes.append('Vehículo (placa)')
-        if not destino_nombre:
-            campos_faltantes.append('Destino')
-        if campos_faltantes:
-            error = "Faltan datos obligatorios para registrar el ingreso: " + ', '.join(campos_faltantes)
+            campos_faltantes_historial.append('Placa del vehículo')
+        descripcion_producto = ''
+        if producto_id:
+            registros_fact, _ = ctrl.get_registros([fact_num])
+            for r in registros_fact:
+                if str(r.get('producto_id')) == str(producto_id):
+                    descripcion_producto = r.get('art_des') or r.get('descrip') or ''
+                    break
+        if not descripcion_producto:
+            campos_faltantes_historial.append('Descripción (producto)')
+        if campos_faltantes_historial:
+            messages.error(
+                request,
+                "No se puede registrar el ingreso en el historial porque faltan los siguientes datos obligatorios: " + ', '.join(campos_faltantes_historial)
+            )
             return render(request, 'control.html', {
                 'registros': [],
                 'fact_num': '',
+                'message': message,
+                'error': error,
+                'empresas': empresas,
+            })
+        # Si no existe en historial, crear el registro automáticamente
+        existe_en_historial = Historial.objects.filter(numero_orden=fact_num, placa_vehiculo=vehiculo_placa, descripcion=descripcion_producto).exists()
+        if not existe_en_historial:
+            from django.utils import timezone
+            Historial.objects.create(
+                numero_orden=fact_num,
+                placa_vehiculo=vehiculo_placa,
+                descripcion=descripcion_producto,
+                fecha_hora=timezone.now()
+            )
+
+        # Validar que la orden esté registrada en el historial antes de registrar en ceres_romana
+        existe_en_historial = Historial.objects.filter(numero_orden=fact_num).exists()
+        if not existe_en_historial:
+            # Buscar los datos faltantes para historial
+            campos_historial_faltantes = []
+            if not producto_id:
+                campos_historial_faltantes.append('ID Producto (producto_id)')
+            if not producto_codigo:
+                campos_historial_faltantes.append('Código de producto (producto_codigo)')
+            if not empresa_rif:
+                campos_historial_faltantes.append('Empresa (RIF)')
+            if not conductor_cedula:
+                campos_historial_faltantes.append('Conductor (cédula)')
+            if not vehiculo_placa:
+                campos_historial_faltantes.append('Vehículo (placa)')
+            if not destino_nombre:
+                campos_historial_faltantes.append('Destino')
+            if campos_historial_faltantes:
+                detalle = 'Faltan los siguientes datos obligatorios para el historial: ' + ', '.join(campos_historial_faltantes)
+            else:
+                detalle = 'Los datos requeridos no coinciden o están incompletos.'
+            error = (
+                f"Debe registrar primero la orden {fact_num} en el historial antes de ingresarla en Romana.\n"
+                f"No se pudo registrar en el historial porque: {detalle}"
+            )
+            return render(request, 'control.html', {
+                'registros': [],
+                'fact_num': fact_num,
                 'message': message,
                 'error': error,
                 'empresas': empresas,
@@ -700,7 +723,8 @@ def control(request):
         # Guardar en historial si hay placa y número de orden
         try:
             producto_nombre_real = ''
-            for r in ctrl.get_registros([fact_num])[0]:
+            registros_fact = ctrl.get_registros([fact_num])
+            for r in registros_fact[0]:
                 if str(r['producto_id']) == str(producto_id):
                     producto_nombre_real = r['art_des'] or r['descrip']
                     break
@@ -958,20 +982,14 @@ def control_personas(request):
     """
     user_id = request.session.get('user_admin_id')
     if not user_id:
-        from django.contrib import messages
         messages.error(request, 'Debe iniciar sesión primero')
-        from django.shortcuts import redirect
         return redirect('login')
     try:
         from .models import User_admin
         user = User_admin.objects.get(id=user_id)
     except User_admin.DoesNotExist:
-        from django.contrib import messages
         messages.error(request, 'Usuario no encontrado')
-        from django.shortcuts import redirect
         return redirect('login')
-    from django.contrib import messages
-    from django.shortcuts import redirect
     # Validar permiso de acceso a control_personas
     if not user.permiso_control_personas:
         messages.error(request, 'No tiene permiso para acceder a la vista de control de personas.')
@@ -987,9 +1005,7 @@ def control_personas(request):
             return redirect('control_personas')
         # Solo permite registrar entradas/salidas si tiene permiso booleano
         if not user.permiso_control_personas:
-            from django.contrib import messages
             messages.error(request, 'No tiene permisos para registrar o modificar accesos de personas. Solo puede consultar.')
-            from django.shortcuts import redirect
             return redirect('control_personas')
         salida_id = request.POST.get('salida_id')
         if salida_id:
