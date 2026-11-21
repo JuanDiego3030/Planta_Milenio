@@ -268,8 +268,9 @@ Planta_Milenio/
 1. **Gestión de Base de Datos en Git**:
    * Los archivos `planta.sqlite3` y `db.sqlite3` ya han sido retirados del índice de Git (`git rm --cached`) e ignorados en [.gitignore](.gitignore).
    * Al hacer `git pull` en el servidor de producción, la base de datos de producción nunca será sobreescrita ni causará conflictos de fusión (*merge conflicts*).
-2. **Archivos Estáticos en Producción**:
-   * Ejecutar siempre `python manage.py collectstatic --noinput` tras actualizar estilos o imágenes para asegurar que Nginx o Gunicorn sirvan las versiones compiladas.
+2. **Archivos Estáticos y Red Local**:
+   * Al ejecutarse de forma local en la red de la planta mediante `runserver` con `DEBUG = True`, Django sirve directamente las hojas de estilo y recursos desde la carpeta `assets/` sin requerir proxies inversos.
+   * `ALLOWED_HOSTS = ["*"]` en `settings.py` permite que cualquier terminal autorizada de la LAN corporativa se conecte a la IP del servidor.
 3. **Conectividad FreeTDS / SQL Server**:
    * Asegurarse de que el servidor Linux tenga instalado el paquete `freetds-bin` y `unixodbc` para garantizar la conexión remota con el servidor MSSQL `10.10.1.1:1433`.
 4. **Respaldos de Datos**:
@@ -277,45 +278,52 @@ Planta_Milenio/
 
 ---
 
-## 8. Guía de Actualización y Despliegue en el Servidor (Ubuntu Linux)
+## 8. Guía de Actualización y Ejecución en Red Local (Servidor Ubuntu)
 
-Para actualizar el sistema en el servidor de producción (**Ubuntu**) tras realizar cambios en el repositorio, sigue estos pasos desde la terminal en el directorio raíz del proyecto:
+El sistema opera en la **red local interna (Intranet/LAN)** de la empresa, sin intermediarios como Gunicorn ni Nginx. Se ejecuta directamente con el servidor de Django enlazado a todas las interfaces de red (`0.0.0.0`) y un puerto asignado (por defecto `8000`), permitiendo que cualquier equipo, caseta de romana o terminal de garita en la red acceda mediante:
+```
+http://<IP_DEL_SERVIDOR>:8000/
+(Ejemplo: http://192.168.0.50:8000/ o http://10.10.1.X:8000/)
+```
 
-### Paso 1: Descargar los cambios desde Git
-Como las bases de datos `.sqlite3` ya no están rastreadas en Git, el pull se ejecutará limpiamente sin riesgo de sobrescribir los datos reales del servidor:
+### Pasos para Actualizar el Sistema en la Máquina Servidor:
+
+#### Paso 1: Detener el servidor actual
+Si el servidor se está ejecutando en una terminal abierta, presiona:
+```text
+Ctrl + C
+```
+*(O si está corriendo en segundo plano: `pkill -f runserver`)*
+
+#### Paso 2: Descargar las actualizaciones desde Git
+Como las bases de datos `.sqlite3` están ignoradas en `.gitignore`, no habrá conflictos con la base de datos real:
 ```bash
 git pull origin master
 ```
 
-### Paso 2: Activar el entorno virtual
-El entorno virtual está ubicado en la raíz del proyecto y se llama `venv`:
+#### Paso 3: Activar el entorno virtual
+El entorno virtual se encuentra en la raíz del proyecto y se llama `venv`:
 ```bash
 source venv/bin/activate
 ```
 
-### Paso 3: Ejecutar migraciones de la base de datos (por si acaso)
-Aplica cualquier migración pendiente de los modelos de datos:
+#### Paso 4: Aplicar migraciones (por si acaso)
+Asegura que los modelos de la base de datos local queden sincronizados:
 ```bash
 python manage.py migrate
 ```
 
-### Paso 4: Recopilar archivos estáticos
-Si se actualizaron hojas de estilo CSS (tema Bankio), scripts JS o logos:
+#### Paso 5: Iniciar el servidor accesible para toda la red
+Ejecuta el servidor enlazado a `0.0.0.0` y el puerto correspondiente:
 ```bash
-python manage.py collectstatic --noinput
+python manage.py runserver 0.0.0.0:8000
 ```
-
-### Paso 5: Reiniciar el servicio web
-Para que el servidor de aplicaciones (Gunicorn) cargue el código actualizado:
-```bash
-sudo systemctl restart gunicorn
-```
-*(O según el gestor en tu servidor: `sudo supervisorctl restart all` o `sudo systemctl restart nginx`).*
+*(Reemplaza `8000` si utilizas otro puerto específico en la planta).*
 
 ---
 
 > [!TIP]
-> **Comando rápido de actualización (todo en una sola línea):**
+> **Comando rápido de actualización en una sola línea:**
 > ```bash
-> git pull origin master && source venv/bin/activate && python manage.py migrate && python manage.py collectstatic --noinput && sudo systemctl restart gunicorn
+> git pull origin master && source venv/bin/activate && python manage.py migrate && python manage.py runserver 0.0.0.0:8000
 > ```
