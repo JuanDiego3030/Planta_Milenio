@@ -274,3 +274,48 @@ Planta_Milenio/
    * Asegurarse de que el servidor Linux tenga instalado el paquete `freetds-bin` y `unixodbc` para garantizar la conexión remota con el servidor MSSQL `10.10.1.1:1433`.
 4. **Respaldos de Datos**:
    * Programar un cron diario para respaldar el archivo SQLite local `planta.sqlite3` en un almacenamiento externo.
+
+---
+
+## 8. Guía de Actualización y Despliegue en el Servidor (Ubuntu Linux)
+
+Para actualizar el sistema en el servidor de producción (**Ubuntu**) tras realizar cambios en el repositorio, sigue estos pasos desde la terminal en el directorio raíz del proyecto:
+
+### Paso 1: Descargar los cambios desde Git
+Como las bases de datos `.sqlite3` ya no están rastreadas en Git, el pull se ejecutará limpiamente sin riesgo de sobrescribir los datos reales del servidor:
+```bash
+git pull origin master
+```
+
+### Paso 2: Activar el entorno virtual
+El entorno virtual está ubicado en la raíz del proyecto y se llama `venv`:
+```bash
+source venv/bin/activate
+```
+
+### Paso 3: Ejecutar migraciones de la base de datos (por si acaso)
+Aplica cualquier migración pendiente de los modelos de datos:
+```bash
+python manage.py migrate
+```
+
+### Paso 4: Recopilar archivos estáticos
+Si se actualizaron hojas de estilo CSS (tema Bankio), scripts JS o logos:
+```bash
+python manage.py collectstatic --noinput
+```
+
+### Paso 5: Reiniciar el servicio web
+Para que el servidor de aplicaciones (Gunicorn) cargue el código actualizado:
+```bash
+sudo systemctl restart gunicorn
+```
+*(O según el gestor en tu servidor: `sudo supervisorctl restart all` o `sudo systemctl restart nginx`).*
+
+---
+
+> [!TIP]
+> **Comando rápido de actualización (todo en una sola línea):**
+> ```bash
+> git pull origin master && source venv/bin/activate && python manage.py migrate && python manage.py collectstatic --noinput && sudo systemctl restart gunicorn
+> ```
