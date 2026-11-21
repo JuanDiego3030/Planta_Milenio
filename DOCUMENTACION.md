@@ -278,52 +278,44 @@ Planta_Milenio/
 
 ---
 
-## 8. Guía de Actualización y Ejecución en Red Local (Servidor Ubuntu)
+## 8. Guía de Actualización en el Servidor (Ubuntu Linux)
 
-El sistema opera en la **red local interna (Intranet/LAN)** de la empresa, sin intermediarios como Gunicorn ni Nginx. Se ejecuta directamente con el servidor de Django enlazado a todas las interfaces de red (`0.0.0.0`) y un puerto asignado (por defecto `8000`), permitiendo que cualquier equipo, caseta de romana o terminal de garita en la red acceda mediante:
+El sistema opera en la **red local interna (Intranet/LAN)** de la empresa, sin intermediarios como Gunicorn ni Nginx. Se ejecuta directamente enlazado a la red corporativa mediante un **servicio automático del sistema en segundo plano**, por lo que **no hace falta iniciar el servidor a mano**.
+
+Cualquier terminal, equipo o caseta de garita en la red accede mediante:
 ```
 http://<IP_DEL_SERVIDOR>:8000/
 (Ejemplo: http://192.168.0.50:8000/ o http://10.10.1.X:8000/)
 ```
 
-### Pasos para Actualizar el Sistema en la Máquina Servidor:
+### Pasos para Actualizar el Sistema en el Servidor:
 
-#### Paso 1: Detener el servidor actual
-Si el servidor se está ejecutando en una terminal abierta, presiona:
-```text
-Ctrl + C
-```
-*(O si está corriendo en segundo plano: `pkill -f runserver`)*
+Desde la terminal en el directorio del proyecto:
 
-#### Paso 2: Descargar las actualizaciones desde Git
-Como las bases de datos `.sqlite3` están ignoradas en `.gitignore`, no habrá conflictos con la base de datos real:
+#### Paso 1: Descargar las actualizaciones desde Git
+Como las bases de datos `.sqlite3` están protegidas e ignoradas en `.gitignore`, la descarga se ejecuta limpiamente sin riesgo de sobrescribir los datos reales:
 ```bash
 git pull origin master
 ```
 
-#### Paso 3: Activar el entorno virtual
+#### Paso 2: Activar el entorno virtual
 El entorno virtual se encuentra en la raíz del proyecto y se llama `venv`:
 ```bash
 source venv/bin/activate
 ```
 
-#### Paso 4: Aplicar migraciones (por si acaso)
-Asegura que los modelos de la base de datos local queden sincronizados:
+#### Paso 3: Aplicar migraciones (por si acaso)
+Sincroniza cualquier cambio o campo nuevo en los modelos de la base de datos local:
 ```bash
 python manage.py migrate
 ```
 
-#### Paso 5: Iniciar el servidor accesible para toda la red
-Ejecuta el servidor enlazado a `0.0.0.0` y el puerto correspondiente:
-```bash
-python manage.py runserver 0.0.0.0:8000
-```
-*(Reemplaza `8000` si utilizas otro puerto específico en la planta).*
+> **¡Y listo!** No es necesario levantar el servidor manualmente: el servicio automático del sistema se encarga de mantenerlo corriendo de forma continua en la IP y puerto asignados dentro de la red local.
 
 ---
 
 > [!TIP]
 > **Comando rápido de actualización en una sola línea:**
 > ```bash
-> git pull origin master && source venv/bin/activate && python manage.py migrate && python manage.py runserver 0.0.0.0:8000
+> git pull origin master && source venv/bin/activate && python manage.py migrate
 > ```
