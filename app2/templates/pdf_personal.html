@@ -2,63 +2,609 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Reporte de Personal</title>
+    <title>Reporte Estadístico de Personal - AgroTrack</title>
     <style>
         @page {
             size: A4 landscape;
-            margin: 1.5cm;
+            margin: 1.2cm 1.4cm 1.4cm 1.4cm;
+            @bottom-left {
+                content: "AgroTrack • Planta Milenio • Control de Seguridad y Accesos";
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                font-size: 8pt;
+                color: #6b7280;
+            }
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                font-size: 8pt;
+                font-weight: bold;
+                color: #374151;
+            }
         }
-        body { font-family: Arial, sans-serif; font-size: 13px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-        th, td { border: 1px solid #333; padding: 7px 6px; text-align: left; font-size: 12px; }
-        th { background: #eee; font-size: 13px; }
-        h2 { margin-bottom: 0; font-size: 18px; }
-        .fecha { font-size: 12px; color: #555; }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #1f2937;
+            font-size: 9pt;
+            line-height: 1.35;
+            background: #ffffff;
+        }
+
+        /* Header Corporativo */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #0f3d34;
+        }
+
+        .header-table td {
+            border: none;
+            vertical-align: middle;
+            padding: 0;
+        }
+
+        .logo-box {
+            width: 35%;
+        }
+
+        .logo-img {
+            height: 46px;
+            width: auto;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        .company-title {
+            font-size: 14pt;
+            font-weight: 800;
+            color: #0f3d34;
+            letter-spacing: -0.5px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .company-sub {
+            font-size: 7.5pt;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .doc-title-box {
+            width: 65%;
+            text-align: right;
+        }
+
+        .doc-badge {
+            display: inline-block;
+            background: #e6f4f1;
+            color: #0f766e;
+            font-size: 7.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-bottom: 4px;
+        }
+
+        .doc-title {
+            font-size: 15pt;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 3px;
+        }
+
+        .doc-meta {
+            font-size: 8pt;
+            color: #4b5563;
+        }
+
+        /* --------------------------------------------------------------------------
+           PANEL DE ESTADÍSTICAS & KPIS
+           -------------------------------------------------------------------------- */
+        .kpi-row-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 12px 0;
+            margin-bottom: 1rem;
+            margin-left: -12px;
+            margin-right: -12px;
+        }
+
+        .kpi-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            vertical-align: top;
+            width: 25%;
+        }
+
+        .kpi-hero {
+            background: #0f3d34;
+            color: #ffffff;
+            border-color: #0f3d34;
+        }
+
+        .kpi-label {
+            font-size: 7.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .kpi-hero .kpi-label {
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .kpi-val {
+            font-size: 14pt;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.15;
+            margin-bottom: 2px;
+        }
+
+        .kpi-hero .kpi-val {
+            color: #ffffff;
+        }
+
+        .kpi-sub {
+            font-size: 7.5pt;
+            color: #94a3b8;
+        }
+
+        .kpi-hero .kpi-sub {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* --------------------------------------------------------------------------
+           SECCIÓN DE GRÁFICAS (PASTEL Y BARRAS)
+           -------------------------------------------------------------------------- */
+        .charts-container-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 14px 0;
+            margin-bottom: 1.25rem;
+            margin-left: -14px;
+            margin-right: -14px;
+        }
+
+        .chart-box {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            vertical-align: top;
+            width: 50%;
+        }
+
+        .chart-box-title {
+            font-size: 10pt;
+            font-weight: 800;
+            color: #0f3d34;
+            margin-bottom: 2px;
+        }
+
+        .chart-box-sub {
+            font-size: 7.5pt;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .chart-layout-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .chart-layout-table td {
+            border: none;
+            vertical-align: middle;
+            padding: 0;
+        }
+
+        .legend-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-left: 10px;
+        }
+
+        .legend-table td {
+            border: none;
+            padding: 3px 0;
+            font-size: 8pt;
+            vertical-align: middle;
+        }
+
+        .color-dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        /* --------------------------------------------------------------------------
+           TABLA DETALLADA DE DATOS
+           -------------------------------------------------------------------------- */
+        .report-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .report-table thead tr th {
+            background-color: #0f3d34;
+            color: #ffffff;
+            font-size: 8pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 8px;
+            border: none;
+            text-align: left;
+        }
+
+        .report-table tbody tr {
+            page-break-inside: avoid;
+        }
+
+        .report-table tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .report-table tbody tr td {
+            padding: 7px 8px;
+            font-size: 8pt;
+            color: #334155;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+
+        .report-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge-pill {
+            display: inline-block;
+            padding: 2px 7px;
+            font-size: 7.5pt;
+            font-weight: 700;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .empty-row {
+            text-align: center;
+            padding: 2.5rem !important;
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 9pt;
+        }
+
+        /* Firmas */
+        .footer-signatures {
+            margin-top: 2rem;
+            page-break-inside: avoid;
+            width: 100%;
+        }
+
+        .signature-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2.5rem;
+        }
+
+        .signature-table td {
+            border: none;
+            width: 33.33%;
+            text-align: center;
+            padding: 0 1.5rem;
+            font-size: 8pt;
+            color: #475569;
+        }
+
+        .signature-line {
+            border-top: 1px solid #94a3b8;
+            padding-top: 5px;
+            margin-bottom: 2px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
     </style>
 </head>
 <body>
-    <h2>Reporte de entradas y salidas de personal</h2>
-    <div class="fecha">
-        {% if fecha_inicio %}Desde: {{ fecha_inicio }}{% endif %}
-        {% if fecha_fin %} &nbsp; Hasta: {{ fecha_fin }}{% endif %}
+    <!-- =======================================================================
+         PÁGINA 1: PANEL EJECUTIVO DE VISITAS Y ACCESOS
+         ======================================================================= -->
+    <table class="header-table">
+        <tr>
+            <td class="logo-box">
+                <img src="file:///home/juan/Documentos/Proyectos/Planta_Milenio/assets/images/Agrotrack_logo.png" alt="Logo" class="logo-img">
+                <div style="display: inline-block; vertical-align: middle;">
+                    <div class="company-title">AgroTrack</div>
+                    <div class="company-sub">Planta Milenio &bull; AgroLucha C.A.</div>
+                </div>
+            </td>
+            <td class="doc-title-box">
+                <div class="doc-badge">Seguridad &bull; Resumen Ejecutivo</div>
+                <div class="doc-title">Estadísticas de Acceso y Visitas</div>
+                <div class="doc-meta">
+                    <strong>Período:</strong> 
+                    {% if fecha_inicio and fecha_fin %}
+                        {{ fecha_inicio }} al {{ fecha_fin }}
+                    {% elif fecha_inicio %}
+                        Desde {{ fecha_inicio }}
+                    {% elif fecha_fin %}
+                        Hasta {{ fecha_fin }}
+                    {% else %}
+                        Historial General Completo
+                    {% endif %}
+                    &bull; <strong>Emisión:</strong> {% now "d/m/Y H:i:s" %}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Tarjetas de Métricas / KPIs Principales -->
+    <table class="kpi-row-table">
+        <tr>
+            <!-- KPI 1: Motivo Principal -->
+            <td class="kpi-card kpi-hero">
+                <div class="kpi-label">Motivo Principal</div>
+                <div class="kpi-val" style="font-size: 11pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ stats.top_motivo }}">
+                    {{ stats.top_motivo }}
+                </div>
+                <div class="kpi-sub">
+                    <strong>{{ stats.top_motivo_count }} ingresos</strong> &bull; {{ stats.top_motivo_pct }}% del total
+                </div>
+            </td>
+
+            <!-- KPI 2: Total de Visitas Registradas -->
+            <td class="kpi-card">
+                <div class="kpi-label">Total Accesos</div>
+                <div class="kpi-val">{{ stats.total_visitas }}</div>
+                <div class="kpi-sub">Visitantes y contratistas</div>
+            </td>
+
+            <!-- KPI 3: Empresa Externa Más Frecuente -->
+            <td class="kpi-card">
+                <div class="kpi-label">Empresa Principal</div>
+                <div class="kpi-val" style="font-size: 11pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ stats.top_empresa }}</div>
+                <div class="kpi-sub">{{ stats.top_empresa_count }} ingresos registrados</div>
+            </td>
+
+            <!-- KPI 4: Estadía Promedio -->
+            <td class="kpi-card">
+                <div class="kpi-label">Estadía Promedio</div>
+                <div class="kpi-val">{{ stats.promedio_min }} min</div>
+                <div class="kpi-sub">{{ stats.aprobadas_pct }}% visitas aprobadas</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- SECCIÓN DE GRÁFICAS: GRÁFICA DE PASTEL + GRÁFICA DE BARRAS -->
+    <table class="charts-container-table">
+        <tr>
+            <!-- GRÁFICA TIPO PASTEL / DONUT: Motivos de Ingreso -->
+            <td class="chart-box">
+                <div class="chart-box-title">Distribución por Motivo de Visita</div>
+                <div class="chart-box-sub">Clasificación de actividades del personal externo en planta</div>
+
+                <table class="chart-layout-table">
+                    <tr>
+                        <td style="width: 140px; text-align: center;">
+                            <svg width="135" height="135" viewBox="0 0 42 42">
+                                <circle cx="21" cy="21" r="15.91549430918954" fill="#ffffff" stroke="#f1f5f9" stroke-width="4.5"></circle>
+                                {% for s in stats.pie_slices %}
+                                <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" 
+                                        stroke="{{ s.color }}" stroke-width="4.5" 
+                                        stroke-dasharray="{{ s.dasharray }}" 
+                                        stroke-dashoffset="{{ s.dashoffset }}"></circle>
+                                {% endfor %}
+                                <text x="21" y="20.5" font-size="3.5" font-family="'Helvetica Neue', sans-serif" text-anchor="middle" fill="#0f3d34" font-weight="bold">ACCESOS</text>
+                                <text x="21" y="24" font-size="2.6" font-family="'Helvetica Neue', sans-serif" text-anchor="middle" fill="#64748b">{{ stats.total_visitas }} personas</text>
+                            </svg>
+                        </td>
+                        <td>
+                            <table class="legend-table">
+                                {% for s in stats.pie_slices %}
+                                <tr>
+                                    <td style="width: 12px;">
+                                        <span class="color-dot" style="background-color: {{ s.color }};"></span>
+                                    </td>
+                                    <td style="color: #334155; font-weight: 600;">
+                                        {{ s.name }}
+                                    </td>
+                                    <td style="text-align: right; color: #64748b; font-size: 7.5pt;">
+                                        {{ s.count }}
+                                    </td>
+                                    <td style="text-align: right; font-weight: bold; color: #0f172a; width: 45px;">
+                                        {{ s.pct }}%
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" style="color: #94a3b8; font-style: italic;">Sin datos suficientes</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+
+            <!-- GRÁFICA DE BARRAS: Afluencia Semanal -->
+            <td class="chart-box">
+                <div class="chart-box-title">Afluencia de Personal por Día</div>
+                <div class="chart-box-sub">Flujo de ingresos en garita por día de la semana</div>
+
+                <svg width="100%" height="135" viewBox="0 0 380 145" preserveAspectRatio="none">
+                    <line x1="20" y1="120" x2="365" y2="120" stroke="#e2e8f0" stroke-width="1.2" />
+                    <line x1="20" y1="75" x2="365" y2="75" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="3 3" />
+                    <line x1="20" y1="30" x2="365" y2="30" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="3 3" />
+
+                    {% for b in stats.bar_chart %}
+                    <rect x="{{ b.x }}" y="{{ b.y }}" width="24" height="{{ b.height }}" rx="5" fill="#0f3d34" />
+                    <text x="{{ b.x|add:'12' }}" y="{{ b.y|add:'-5' }}" font-size="7.5" font-family="'Helvetica Neue', sans-serif" text-anchor="middle" fill="#0f3d34" font-weight="bold">
+                        {% if b.count > 0 %}{{ b.count }}{% endif %}
+                    </text>
+                    <text x="{{ b.x|add:'12' }}" y="134" font-size="8" font-family="'Helvetica Neue', sans-serif" text-anchor="middle" fill="#64748b" font-weight="600">
+                        {{ b.label }}
+                    </text>
+                    {% endfor %}
+                </svg>
+            </td>
+        </tr>
+    </table>
+
+    <div style="font-size: 8pt; color: #64748b; text-align: center; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e2e8f0;">
+        &bull; A continuación se presenta la bitácora detallada de todas las personas registradas en garita &bull;
     </div>
-    <table>
+
+    <!-- =======================================================================
+         PÁGINA 2 EN ADELANTE: BITÁCORA DETALLADA DE ACCESOS
+         ======================================================================= -->
+    <div class="page-break"></div>
+
+    <table class="header-table">
+        <tr>
+            <td class="logo-box">
+                <img src="file:///home/juan/Documentos/Proyectos/Planta_Milenio/assets/images/Agrotrack_logo.png" alt="Logo" class="logo-img">
+                <div style="display: inline-block; vertical-align: middle;">
+                    <div class="company-title">AgroTrack</div>
+                    <div class="company-sub">Planta Milenio &bull; Bitácora de Accesos</div>
+                </div>
+            </td>
+            <td class="doc-title-box">
+                <div class="doc-badge">Control de Garita</div>
+                <div class="doc-title" style="font-size: 13pt;">Listado Detallado de Personas</div>
+                <div class="doc-meta">
+                    Total: {{ stats.total_visitas }} personas registradas
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Tabla Principal de Personas -->
+    <table class="report-table">
         <thead>
             <tr>
-                <th>Nombre</th>
-                <th>Apellido</th>
-                <th>Cédula</th>
-                <th>Empresa</th>
-                <th>Motivo de ingreso</th>
-                <th>Placa</th>
-                <th>Autorizado por</th>
-                <th>Estado</th>
-                <th>A quién visita</th>
-                <th>Duración (min)</th>
-                <th>Hora entrada</th>
-                <th>Hora salida</th>
+                <th style="width: 14%;">Persona</th>
+                <th style="width: 9%;">Cédula</th>
+                <th style="width: 12%;">Empresa</th>
+                <th style="width: 14%;">Motivo</th>
+                <th style="width: 10%;">A Quién Visita</th>
+                <th style="width: 8%;">Vehículo</th>
+                <th style="width: 10%;">Autorizado Por</th>
+                <th style="width: 11%;">Hora Entrada</th>
+                <th style="width: 6%; text-align: center;">Tiempo</th>
+                <th style="width: 6%; text-align: center;">Estado</th>
             </tr>
         </thead>
         <tbody>
             {% for e in entradas %}
             <tr>
-                <td>{{ e.nombre }}</td>
-                <td>{{ e.apellido }}</td>
+                <td>
+                    <strong>{{ e.nombre }} {{ e.apellido }}</strong>
+                </td>
                 <td>{{ e.cedula }}</td>
-                <td>{{ e.empresa|default_if_none:"" }}</td>
+                <td>{{ e.empresa|default:"Particular" }}</td>
                 <td>{{ e.motivo_ingreso }}</td>
-                <td>{{ e.placa_vehiculo|default_if_none:"" }}</td>
-                <td>{{ e.autorizado_por|default_if_none:"" }}</td>
-                <td>{{ e.estado_visita|title }}</td>
-                <td>{{ e.a_quien_visita|default_if_none:"" }}</td>
-                <td>{% if e.tiempo_visita is not None %}{{ e.tiempo_visita }}{% else %}-{% endif %}</td>
-                <td>{{ e.hora_entrada|date:"Y-m-d H:i:s" }}</td>
-                <td>{% if e.hora_salida %}{{ e.hora_salida|date:"Y-m-d H:i:s" }}{% else %}-{% endif %}</td>
+                <td>{{ e.a_quien_visita|default:"-" }}</td>
+                <td>
+                    {% if e.placa_vehiculo %}
+                        <strong>{{ e.placa_vehiculo }}</strong>
+                    {% else %}
+                        <span style="color:#94a3b8;">A pie</span>
+                    {% endif %}
+                </td>
+                <td>{{ e.autorizado_por|default:"-" }}</td>
+                <td>
+                    {{ e.hora_entrada|date:"d/m/Y" }}<br>
+                    <span style="color:#64748b;">{{ e.hora_entrada|date:"H:i:s" }}</span>
+                </td>
+                <td style="text-align: center;">
+                    {% if e.tiempo_visita is not None %}
+                        <strong>{{ e.tiempo_visita }}</strong> min
+                    {% elif not e.hora_salida %}
+                        <span class="badge-pill badge-warning">En Planta</span>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td style="text-align: center;">
+                    {% if e.estado_visita == 'aprobada' %}
+                        <span class="badge-pill badge-success">Aprobada</span>
+                    {% else %}
+                        <span class="badge-pill badge-danger">Negada</span>
+                    {% endif %}
+                </td>
             </tr>
             {% empty %}
-            <tr><td colspan="8">No hay registros.</td></tr>
+            <tr>
+                <td colspan="10" class="empty-row">
+                    No se encontraron registros de accesos de personal en el rango de fechas seleccionado.
+                </td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Bloque de Firmas y Validación -->
+    <div class="footer-signatures">
+        <table class="signature-table">
+            <tr>
+                <td>
+                    <div class="signature-line">Vigilancia / Portería</div>
+                    <div>Control y Registro en Garita</div>
+                </td>
+                <td>
+                    <div class="signature-line">Seguridad Industrial</div>
+                    <div>Cumplimiento de Protocolos</div>
+                </td>
+                <td>
+                    <div class="signature-line">Supervisión / Auditoría</div>
+                    <div>Conformidad y Archivo</div>
+                </td>
+            </tr>
+        </table>
+    </div>
 </body>
 </html>

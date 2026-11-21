@@ -291,6 +291,197 @@ def control_usuarios(request):
         'page_obj': usuarios,
     })
 
+def compute_materia_prima_stats(entradas):
+    """Calcula métricas y datos de gráficos para el reporte de materia prima."""
+    from collections import Counter
+    total = len(entradas)
+    if total == 0:
+        return {
+            'total_cargas': 0,
+            'top_mp': 'Sin registros',
+            'top_mp_count': 0,
+            'top_mp_pct': 0,
+            'top_placa': 'N/A',
+            'top_placa_count': 0,
+            'pie_slices': [],
+            'bar_chart': [],
+            'pico_dia': 'N/A'
+        }
+    
+    # 1. Donut chart slices for Materia Prima
+    descs_raw = [
+        e.descripcion.strip() if (e.descripcion and e.descripcion.strip()) else 'Materia Prima General'
+        for e in entradas
+    ]
+    desc_counter = Counter(descs_raw)
+    top_items = desc_counter.most_common(4)
+    sum_top = sum(c for _, c in top_items)
+    otros = total - sum_top
+    
+    palette = ['#0f3d34', '#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6']
+    pie_slices = []
+    current_offset = 25  # Inicia arriba (las 12 en punto)
+    
+    for idx, (name, count) in enumerate(top_items):
+        pct = round((count / total) * 100, 1)
+        pie_slices.append({
+            'name': name[:28] + ('...' if len(name) > 28 else ''),
+            'count': count,
+            'pct': pct,
+            'color': palette[idx % len(palette)],
+            'dasharray': f"{pct} {max(0.0, 100.0 - pct)}",
+            'dashoffset': current_offset
+        })
+        current_offset = (current_offset - pct) % 100
+        
+    if otros > 0:
+        pct_otros = round((otros / total) * 100, 1)
+        pie_slices.append({
+            'name': 'Otras Materias Primas',
+            'count': otros,
+            'pct': pct_otros,
+            'color': '#94a3b8',
+            'dasharray': f"{pct_otros} {max(0.0, 100.0 - pct_otros)}",
+            'dashoffset': current_offset
+        })
+
+    # 2. Bar chart para distribución por día de la semana
+    day_names = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    day_counts = {i: 0 for i in range(7)}
+    for e in entradas:
+        if e.fecha_hora:
+            day_counts[e.fecha_hora.weekday()] += 1
+            
+    max_day_val = max(day_counts.values()) if day_counts and max(day_counts.values()) > 0 else 1
+    best_day_idx = max(day_counts, key=day_counts.get)
+    pico_dia = f"{day_names[best_day_idx]} ({day_counts[best_day_idx]} cargas)" if day_counts[best_day_idx] > 0 else "N/A"
+    
+    bar_chart = []
+    for day_idx in range(7):
+        c = day_counts[day_idx]
+        h = int((c / max_day_val) * 85) if max_day_val > 0 else 4
+        bar_chart.append({
+            'label': day_names[day_idx],
+            'count': c,
+            'height': max(6, h),
+            'y': 120 - max(6, h),
+            'x': 25 + (day_idx * 48)
+        })
+
+    # Top placa / flota
+    placas_counter = Counter(e.placa_vehiculo.strip() for e in entradas if e.placa_vehiculo and e.placa_vehiculo.strip())
+    top_placa = placas_counter.most_common(1)[0][0] if placas_counter else "N/A"
+    top_placa_count = placas_counter.most_common(1)[0][1] if placas_counter else 0
+
+    top_mp_name = top_items[0][0] if top_items else "Sin registros"
+    top_mp_count = top_items[0][1] if top_items else 0
+    top_mp_pct = round((top_mp_count / total) * 100, 1)
+
+    return {
+        'total_cargas': total,
+        'top_mp': top_mp_name,
+        'top_mp_count': top_mp_count,
+        'top_mp_pct': top_mp_pct,
+        'top_placa': top_placa,
+        'top_placa_count': top_placa_count,
+        'pie_slices': pie_slices,
+        'bar_chart': bar_chart,
+        'pico_dia': pico_dia
+    }
+
+def compute_personal_stats(entradas):
+    """Calcula métricas y datos de gráficos para el reporte de personal."""
+    from collections import Counter
+    total = len(entradas)
+    if total == 0:
+        return {
+            'total_visitas': 0,
+            'top_motivo': 'Sin registros',
+            'top_motivo_count': 0,
+            'top_motivo_pct': 0,
+            'top_empresa': 'N/A',
+            'top_empresa_count': 0,
+            'pie_slices': [],
+            'bar_chart': [],
+            'promedio_min': 0,
+            'aprobadas_pct': 100
+        }
+
+    motivos_raw = [e.motivo_ingreso.strip() for e in entradas if e.motivo_ingreso and e.motivo_ingreso.strip()]
+    motivo_counter = Counter(motivos_raw)
+    top_items = motivo_counter.most_common(4)
+    sum_top = sum(c for _, c in top_items)
+    otros = total - sum_top
+
+    palette = ['#0f3d34', '#10b981', '#0ea5e9', '#f59e0b', '#8b5cf6']
+    pie_slices = []
+    current_offset = 25
+
+    for idx, (name, count) in enumerate(top_items):
+        pct = round((count / total) * 100, 1)
+        pie_slices.append({
+            'name': name[:28] + ('...' if len(name) > 28 else ''),
+            'count': count,
+            'pct': pct,
+            'color': palette[idx % len(palette)],
+            'dasharray': f"{pct} {max(0.0, 100.0 - pct)}",
+            'dashoffset': current_offset
+        })
+        current_offset = (current_offset - pct) % 100
+
+    if otros > 0:
+        pct_otros = round((otros / total) * 100, 1)
+        pie_slices.append({
+            'name': 'Otros Motivos',
+            'count': otros,
+            'pct': pct_otros,
+            'color': '#94a3b8',
+            'dasharray': f"{pct_otros} {max(0.0, 100.0 - pct_otros)}",
+            'dashoffset': current_offset
+        })
+
+    day_names = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    day_counts = {i: 0 for i in range(7)}
+    for e in entradas:
+        if e.hora_entrada:
+            day_counts[e.hora_entrada.weekday()] += 1
+
+    max_day_val = max(day_counts.values()) if day_counts and max(day_counts.values()) > 0 else 1
+    bar_chart = []
+    for day_idx in range(7):
+        c = day_counts[day_idx]
+        h = int((c / max_day_val) * 85) if max_day_val > 0 else 4
+        bar_chart.append({
+            'label': day_names[day_idx],
+            'count': c,
+            'height': max(6, h),
+            'y': 120 - max(6, h),
+            'x': 25 + (day_idx * 48)
+        })
+
+    empresas_counter = Counter(e.empresa.strip() for e in entradas if e.empresa and e.empresa.strip())
+    top_empresa = empresas_counter.most_common(1)[0][0] if empresas_counter else "Particular"
+    top_empresa_count = empresas_counter.most_common(1)[0][1] if empresas_counter else 0
+
+    tiempos = [e.tiempo_visita for e in entradas if e.tiempo_visita is not None]
+    promedio_min = round(sum(tiempos) / len(tiempos)) if tiempos else 0
+
+    aprobadas = sum(1 for e in entradas if e.estado_visita == 'aprobada')
+    aprobadas_pct = round((aprobadas / total) * 100, 1) if total > 0 else 100
+
+    return {
+        'total_visitas': total,
+        'top_motivo': top_items[0][0] if top_items else "Sin registros",
+        'top_motivo_count': top_items[0][1] if top_items else 0,
+        'top_motivo_pct': round((top_items[0][1] / total) * 100, 1) if top_items else 0,
+        'top_empresa': top_empresa,
+        'top_empresa_count': top_empresa_count,
+        'pie_slices': pie_slices,
+        'bar_chart': bar_chart,
+        'promedio_min': promedio_min,
+        'aprobadas_pct': aprobadas_pct
+    }
+
 def reporte_pdf_materia_prima(request):
     """Genera PDF de entradas de materia prima según filtros de fecha."""
     user_id = request.session.get('user_admin_id')
@@ -315,21 +506,24 @@ def reporte_pdf_materia_prima(request):
     qs = Historial.objects.all().order_by('-fecha_hora')
     if fecha_inicio:
         try:
-            fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_inicio_dt = timezone.make_aware(timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d"))
             qs = qs.filter(fecha_hora__gte=fecha_inicio_dt)
         except Exception:
             pass
     if fecha_fin:
         try:
-            fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+            fecha_fin_dt = timezone.make_aware(timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1))
             qs = qs.filter(fecha_hora__lt=fecha_fin_dt)
         except Exception:
             pass
     entradas = qs[:200]
+    stats = compute_materia_prima_stats(entradas)
+
     html_string = render_to_string('pdf_materia_prima.html', {
         'entradas': entradas,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
+        'stats': stats,
     })
     pdf_file = HTML(string=html_string).write_pdf()
     response = HttpResponse(pdf_file, content_type='application/pdf')
@@ -343,21 +537,24 @@ def reporte_pdf_personal(request):
     qs = AccesoPersona.objects.all().order_by('-hora_entrada')
     if fecha_inicio:
         try:
-            fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_inicio_dt = timezone.make_aware(timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d"))
             qs = qs.filter(hora_entrada__gte=fecha_inicio_dt)
         except Exception:
             pass
     if fecha_fin:
         try:
-            fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+            fecha_fin_dt = timezone.make_aware(timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1))
             qs = qs.filter(hora_entrada__lt=fecha_fin_dt)
         except Exception:
             pass
     entradas = qs[:200]
+    stats = compute_personal_stats(entradas)
+
     html_string = render_to_string('pdf_personal.html', {
         'entradas': entradas,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
+        'stats': stats,
     })
     pdf_file = HTML(string=html_string).write_pdf()
     response = HttpResponse(pdf_file, content_type='application/pdf')
@@ -366,8 +563,10 @@ def reporte_pdf_personal(request):
 
 def reportes(request):
     """
-    Vista para mostrar y descargar reportes de entrada de materia prima (control) y de personal (control_personas).
-    Permite filtrar por fechas y descargar PDF de ambos tipos de reportes.
+    Vista para mostrar interactivamente y descargar reportes oficiales:
+    Materia Prima (romana/cargas) y Control de Personal (asistencia/visitas).
+    Permite visualizar en pantalla las métricas, gráficos de pastel/donut y barras,
+    así como descargar el documento final en PDF de alta resolución.
     """
     user_id = request.session.get('user_admin_id')
     if not user_id:
@@ -382,72 +581,64 @@ def reportes(request):
     # Validar permiso de acceso a reportes
     if not user.permiso_reportes:
         messages.error(request, 'No tiene permiso para acceder a la vista de reportes.')
-        return redirect('login')
+        return redirect('control')
     
     tipo = request.GET.get('tipo', 'materia_prima')  # 'materia_prima' o 'personal'
-    fecha_inicio = request.GET.get('fecha_inicio', '')
-    fecha_fin = request.GET.get('fecha_fin', '')
+    fecha_inicio = request.GET.get('fecha_inicio', '').strip()
+    fecha_fin = request.GET.get('fecha_fin', '').strip()
+    generar = request.GET.get('generar')
+    
+    # El reporte se muestra generado en la plataforma para previsualización inmediata y descarga posterior
+    reporte_generado = True
     entradas = []
+    stats = {}
     error = None
+
     if tipo == 'materia_prima':
-        # Historial de materia prima (de la vista control)
         qs = Historial.objects.all().order_by('-fecha_hora')
         if fecha_inicio:
             try:
-                fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+                fecha_inicio_dt = timezone.make_aware(timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d"))
                 qs = qs.filter(fecha_hora__gte=fecha_inicio_dt)
             except Exception:
                 error = 'Fecha de inicio inválida.'
         if fecha_fin:
             try:
-                fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+                fecha_fin_dt = timezone.make_aware(timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1))
                 qs = qs.filter(fecha_hora__lt=fecha_fin_dt)
             except Exception:
                 error = 'Fecha de fin inválida.'
-        entradas = qs[:200]
-        paginador = None
-        pagina_actual = None
+        entradas = list(qs[:300])
+        stats = compute_materia_prima_stats(entradas)
+
     elif tipo == 'personal':
-        # Entradas y salidas de personal, paginadas de a 10
         qs = AccesoPersona.objects.all().order_by('-hora_entrada')
         if fecha_inicio:
             try:
-                fecha_inicio_dt = timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d")
+                fecha_inicio_dt = timezone.make_aware(timezone.datetime.strptime(fecha_inicio, "%Y-%m-%d"))
                 qs = qs.filter(hora_entrada__gte=fecha_inicio_dt)
             except Exception:
                 error = 'Fecha de inicio inválida.'
         if fecha_fin:
             try:
-                fecha_fin_dt = timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1)
+                fecha_fin_dt = timezone.make_aware(timezone.datetime.strptime(fecha_fin, "%Y-%m-%d") + timezone.timedelta(days=1))
                 qs = qs.filter(hora_entrada__lt=fecha_fin_dt)
             except Exception:
                 error = 'Fecha de fin inválida.'
-        from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-        paginador = Paginator(qs, 10)
-        page = request.GET.get('page', 1)
-        try:
-            entradas = paginador.page(page)
-            pagina_actual = entradas.number
-        except PageNotAnInteger:
-            entradas = paginador.page(1)
-            pagina_actual = 1
-        except EmptyPage:
-            entradas = paginador.page(paginador.num_pages)
-            pagina_actual = paginador.num_pages
+        entradas = list(qs[:300])
+        stats = compute_personal_stats(entradas)
+
     else:
         error = 'Tipo de reporte no válido.'
-        entradas = []
-        paginador = None
-        pagina_actual = None
 
     return render(request, 'reportes.html', {
         'tipo': tipo,
         'entradas': entradas,
+        'stats': stats,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
         'error': error,
-        'paginador': paginador,
-        'pagina_actual': pagina_actual,
+        'reporte_generado': reporte_generado,
         'user_admin': user,
     })
 

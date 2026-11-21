@@ -1,153 +1,249 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Panel - Pruebas{% endblock %}</title>
+    <title>{% block title %}AgroTrack - Planta Milenio{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Script Anti-Flicker para Modo Claro / Oscuro -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('agrotrack-theme') || 
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5.3 & Font Awesome 6 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Project styles: reuse same styles as index -->
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Bankio-Inspired Modern Design System -->
+    <link rel="stylesheet" href="{% static 'css/bankio-theme.css' %}">
     <link rel="icon" href="{% static 'images/Agrotrack_logo.png' %}" type="image/png">
+    
     {% block extra_head %}{% endblock %}
-    <style>
-        /* Simple layout tweaks to ensure sidebar + content spacing */
-        /* Compensate for the fixed header to avoid overlap with sidebar/content */
-        body {
-            padding-top: 80px; /* header height in main CSS */
-            background-color: var(--main-bg-color);
-            color: var(--text-color);
-        }
-
-        @media (max-width: 768px) {
-            body { padding-top: 70px; }
-        }
-
-        /* Sidebar: use the same dark sidebar variables from main.css for contrast */
-        .sidebar {
-            min-height: 100vh;
-            background: var(--sidebar-bg-color, #1b355d);
-            color: var(--light-text, #f8f9fa);
-            border-right: 1px solid rgba(0,0,0,.05);
-            padding-top: 1rem;
-        }
-
-        .sidebar .nav-link {
-            color: var(--light-text, #f8f9fa);
-        }
-
-        .sidebar .nav-link.active {
-            background: rgba(255,255,255,0.06);
-            font-weight: 600;
-            color: var(--light-text, #f8f9fa);
-        }
-
-        /* Main content area should use the page background and readable text color */
-        .content-area {
-            padding: 2rem;
-            background: transparent;
-            color: var(--text-color, #333);
-        }
-
-        /* Ensure tables and form controls inside content are readable */
-        .content-area table,
-        .content-area th,
-        .content-area td {
-            color: var(--text-color, #333) !important;
-        }
-
-        .content-area .form-control,
-        .content-area .form-select {
-            background-color: #fff;
-            color: var(--text-color, #333);
-            border: 1px solid var(--border-color, #dee2e6);
-        }
-        /* Navbar layout: logo fijo en esquina, por encima del sidebar */
-        .header { min-height: 56px; background: var(--primary-dark); position: fixed; top: 0; left: 0; width: 100%; z-index: 1100; }
-        .header .logo { position: absolute; left: 0.75rem; top: 0.5rem; z-index: 1200; }
-        .header .logo img { max-height: 56px; width: auto; }
-        #navbar-clock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1101; }
-        .header .actions { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); z-index: 1101; }
-        /* Ensure header has enough height for fixed positioning */
-        .header { min-height: 56px; }
-    </style>
 </head>
 <body>
-    <!-- Reusable navbar (based on index.html) -->
-    <header class="header position-fixed w-100" style="top:0; left:0; z-index:1100; background:white; min-height:56px;">
-        <a href="{% url 'control' %}" class="logo d-flex align-items-center text-decoration-none position-absolute" style="left:0.75rem; top:0.5rem; z-index:1200;">
-            <img src="{% static 'images/Agrotrack_logo.png' %}" alt="AgroTrack Logo" class="img-fluid">
-            <span class="h4 ms-2"><strong>AgroTrack</strong></span>
-        </a>
-        <div class="container header-wrapper d-flex justify-content-between align-items-center" style="position:relative;">
-            <div id="navbar-clock" class="fw-bold text-nowrap" style="font-size:1rem; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:1101;"><i class="fa fa-clock me-1"></i><span id="clock-time"></span></div>
-            <div class="actions d-flex align-items-center gap-3" style="position:absolute; right:0.75rem; top:50%; transform:translateY(-50%); z-index:1101;">
-                <a href="{% url 'logout' %}" class="btn btn-outline-light"><i class="fas fa-sign-out-alt me-1"></i> Cerrar sesión</a>
-            </div>
-        </div>
-    </header>
-
-    <!-- Toast container (global) -->
-    <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1200; min-width: 300px;">
-        <div id="toast-container"></div>
-    </div>
-
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <aside class="col-md-3 col-lg-2 sidebar d-none d-md-block">
-                <div class="px-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            {% if user_admin %}
-                                {% if user_admin.permiso_control %}
-                                    <a class="nav-link" href="{% url 'control' %}"><i class="fas fa-list me-2"></i>Control de entradas </a>
-                                {% endif %}
-                                {% if user_admin.permiso_control_personas %}
-                                    <a class="nav-link" href="{% url 'control_personas' %}"><i class="fas fa-users me-2"></i>Control de personas </a>
-                                {% endif %}
-                                {% if user_admin.permiso_reportes %}
-                                    <a class="nav-link" href="{% url 'reportes' %}"><i class="fas fa-chart-bar me-2"></i>Reportes </a>
-                                {% endif %}
-                                {% if user_admin.permiso_usuarios %}
-                                    <a class="nav-link" href="{% url 'control_usuarios' %}"><i class="fas fa-user-cog me-2"></i>Usuarios</a>
-                                {% endif %}
-                                {% if user_admin.permiso_auditoria %}
-                                    <a class="nav-link" href="{% url 'auditoria' %}"><i class="fas fa-search me-2"></i>Auditoría</a>
-                                {% endif %}
-                            {% endif %}
-                        </li>
-                        <li class="nav-item">
-                    </ul>
+    <div class="app-layout">
+        <!-- Sidebar Navigation (Bankio Style) -->
+        <aside class="app-sidebar" id="appSidebar">
+            <a href="{% url 'control' %}" class="sidebar-brand">
+                <img src="{% static 'images/Agrotrack_logo.png' %}" alt="AgroTrack Logo">
+                <div>
+                    <div class="brand-title">AgroTrack</div>
+                    <span class="brand-badge">Planta Milenio</span>
                 </div>
-            </aside>
+            </a>
 
-            <!-- Main content area -->
-            <main class="col-12 col-md-9 col-lg-10 content-area">
-                {% if messages %}
-                    {% for message in messages %}
-                    {% endfor %}
+            <div class="sidebar-nav-container">
+                <div class="nav-section-title">Menú Principal</div>
+                <ul class="sidebar-nav">
+                    {% if user_admin.permiso_control or not user_admin %}
+                    <li>
+                        <a href="{% url 'control' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'control' %}active{% endif %}">
+                            <i class="fas fa-truck-ramp-box"></i>
+                            <span>Entradas Materia Prima</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if user_admin.permiso_control_personas or not user_admin %}
+                    <li>
+                        <a href="{% url 'control_personas' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'control_personas' %}active{% endif %}">
+                            <i class="fas fa-id-card-clip"></i>
+                            <span>Control de Personas</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if user_admin.permiso_auditoria or not user_admin %}
+                    <li>
+                        <a href="{% url 'auditoria' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'auditoria' %}active{% endif %}">
+                            <i class="fas fa-scale-balanced"></i>
+                            <span>Auditoría de Romana</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if user_admin.permiso_reportes or not user_admin %}
+                    <li>
+                        <a href="{% url 'reportes' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}">
+                            <i class="fas fa-file-waveform"></i>
+                            <span>Centro de Reportes</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                {% if user_admin.permiso_usuarios %}
+                <div class="nav-section-title">Administración</div>
+                <ul class="sidebar-nav">
+                    <li>
+                        <a href="{% url 'control_usuarios' %}" class="sidebar-nav-link {% if request.resolver_match.url_name == 'control_usuarios' %}active{% endif %}">
+                            <i class="fas fa-user-shield"></i>
+                            <span>Gestión de Usuarios</span>
+                        </a>
+                    </li>
+                </ul>
                 {% endif %}
+            </div>
 
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="system-status-pill">
+                    <span class="pulse-dot"></span>
+                    <span>Sistema Operativo</span>
+                </div>
+                <a href="{% url 'logout' %}" class="sidebar-nav-link text-danger" style="padding: 0.6rem 0.85rem;">
+                    <i class="fas fa-arrow-right-from-bracket text-danger"></i>
+                    <span>Cerrar sesión</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Mobile Overlay Backdrop -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- Main Workspace Area -->
+        <div class="app-main">
+            <!-- Topbar Header -->
+            <header class="app-topbar">
+                <div class="topbar-left d-flex align-items-center gap-3">
+                    <button class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Abrir Menú">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div>
+                        <h1 class="welcome-title">Bienvenido, {{ user_admin.nombre|default:"Usuario" }}</h1>
+                        <p class="welcome-subtitle">Plataforma de Control y Gestión en Tiempo Real</p>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Botón Alternador de Modo Claro / Oscuro -->
+                    <button class="circle-btn" id="themeToggleBtn" type="button" aria-label="Cambiar tema claro / oscuro" title="Cambiar tema">
+                        <i class="fas fa-moon" id="themeToggleIcon"></i>
+                    </button>
+
+                    <!-- Reloj Venezuela -->
+                    <div class="clock-pill d-none d-sm-flex" title="Hora Oficial de Venezuela">
+                        <i class="far fa-clock"></i>
+                        <span id="clock-time">--:--:--</span>
+                    </div>
+
+                    <!-- Perfil de usuario -->
+                    <div class="dropdown">
+                        <div class="user-profile-pill" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="user-avatar-circle">
+                                {{ user_admin.nombre|default:"U"|slice:":1"|upper }}
+                            </div>
+                            <div class="user-info-text d-none d-md-flex">
+                                <span class="user-name-label">{{ user_admin.nombre|default:"Usuario" }}</span>
+                                <span class="user-role-label">
+                                    {% if user_admin.solo_consulta %}Consulta{% else %}Operador{% endif %}
+                                </span>
+                            </div>
+                            <i class="fas fa-chevron-down ms-1 text-muted" style="font-size: 0.7rem;"></i>
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="border-radius: 14px; margin-top: 8px;">
+                            <li class="px-3 py-2 border-bottom">
+                                <small class="text-muted d-block">Sesión activa</small>
+                                <strong>{{ user_admin.nombre|default:"Usuario" }}</strong>
+                            </li>
+                            {% if user_admin.permiso_usuarios %}
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'control_usuarios' %}">
+                                    <i class="fas fa-users-cog me-2 text-muted"></i>Usuarios
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li>
+                                <a class="dropdown-item py-2 text-danger" href="{% url 'logout' %}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Page View Content -->
+            <main class="page-content">
                 {% block content %}{% endblock %}
             </main>
         </div>
     </div>
+
+    <!-- Global Floating Toast Container -->
+    <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 2050; min-width: 320px;">
+        <div id="toast-container" class="d-flex flex-column gap-2"></div>
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
-    // Toast utility (global)
+    // Theme Engine (Light / Dark Mode)
+    (function() {
+        const themeBtn = document.getElementById('themeToggleBtn');
+        const themeIcon = document.getElementById('themeToggleIcon');
+        
+        function updateThemeIcon(theme) {
+            if (!themeIcon) return;
+            if (theme === 'dark') {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                themeIcon.style.color = '#fbbf24'; // Warm yellow sun
+            } else {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                themeIcon.style.color = '';
+            }
+        }
+
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        updateThemeIcon(currentTheme);
+
+        if (themeBtn) {
+            themeBtn.addEventListener('click', function() {
+                const now = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+                const next = now === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('agrotrack-theme', next);
+                updateThemeIcon(next);
+            });
+        }
+    })();
+
+    // Global Toast Utility
     function showToast(message, type="info") {
         const toastId = "toast-" + Math.random().toString(36).substr(2, 9);
-        const colors = {
-            info: "bg-info text-white",
-            danger: "bg-danger text-white",
-            success: "bg-success text-white",
-            warning: "bg-warning text-dark",
-            secondary: "bg-secondary text-white"
+        const iconMap = {
+            success: "fa-circle-check text-success",
+            danger: "fa-circle-exclamation text-danger",
+            warning: "fa-triangle-exclamation text-warning",
+            info: "fa-circle-info text-primary",
+            secondary: "fa-bell text-secondary"
         };
-        const color = colors[type] || colors.info;
-        const toastHtml = `\n    <div id="${toastId}" class="toast align-items-center ${color}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000">\n      <div class="d-flex">\n        <div class="toast-body">${message}</div>\n        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>\n      </div>\n    </div>`;
+        const iconClass = iconMap[type] || iconMap.info;
+        
+        const toastHtml = `
+            <div id="${toastId}" class="toast border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4500" style="border-radius: 14px; overflow: hidden; background: var(--bg-card); color: var(--text-dark); border: 1px solid var(--border-light) !important;">
+                <div class="d-flex align-items-center p-3">
+                    <i class="fas ${iconClass} fs-5 me-3"></i>
+                    <div class="toast-body p-0 flex-grow-1" style="font-size: 0.885rem; font-weight: 500;">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+                </div>
+            </div>`;
+            
         const container = document.getElementById('toast-container');
         if (container) {
             container.insertAdjacentHTML('beforeend', toastHtml);
@@ -158,7 +254,7 @@
         }
     }
 
-    // Mostrar mensajes de Django (si existen) como toasts
+    // Process Django Messages
     document.addEventListener('DOMContentLoaded', function() {
         {% if message %}
             showToast("{{ message|escapejs }}", "info");
@@ -175,7 +271,7 @@
         {% endif %}
     });
 
-    // Reloj Venezuela (disponible en todas las páginas)
+    // Real-time Venezuela Clock
     function updateVenezuelaClock() {
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -189,6 +285,27 @@
     document.addEventListener('DOMContentLoaded', function() {
         updateVenezuelaClock();
         setInterval(updateVenezuelaClock, 1000);
+    });
+
+    // Mobile Sidebar Drawer Toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('appSidebar');
+        const toggleBtn = document.getElementById('mobileNavToggle');
+        const backdrop = document.getElementById('sidebarBackdrop');
+
+        function toggleSidebar() {
+            if (sidebar && backdrop) {
+                sidebar.classList.toggle('show');
+                backdrop.classList.toggle('show');
+            }
+        }
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', toggleSidebar);
+        }
+        if (backdrop) {
+            backdrop.addEventListener('click', toggleSidebar);
+        }
     });
     </script>
     {% block extra_scripts %}{% endblock %}

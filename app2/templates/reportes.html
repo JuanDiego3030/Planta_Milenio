@@ -1,57 +1,906 @@
-    {% extends 'base.html' %}
-    {% load static %}
+{% extends 'base.html' %}
+{% load static %}
 
-    {% block title %}Reportes de entradas{% endblock %}
+{% block title %}Centro de Reportes | AgroTrack{% endblock %}
 
-    {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <style>
-      .main-content { min-height: 60vh; }
-      .form-inline-row .form-control { min-width: 180px; }
-    </style>
-    {% endblock %}
-
-    {% block content %}
-    <section class="section main-content">
-      <div class="container">
-        <h2 class="mb-4">Reportes de entradas</h2>
-        {% if error %}
-          <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
-        <!-- Formularios simples para descargar PDF de cada tipo de reporte -->
-        <div class="row justify-content-center">
-          <div class="col-md-6 mb-4">
-            <form method="get" action="{% url 'reporte_pdf_materia_prima' %}" class="card card-body shadow-sm">
-              <h5 class="mb-3">Reporte de entrada de materia prima</h5>
-              <div class="mb-3">
-                <label class="form-label">Fecha inicio</label>
-                <input type="date" name="fecha_inicio" class="form-control">
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Fecha fin</label>
-                <input type="date" name="fecha_fin" class="form-control">
-              </div>
-              <button type="submit" class="btn btn-success w-100"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
-            </form>
-          </div>
-          <div class="col-md-6 mb-4">
-            <form method="get" action="{% url 'reporte_pdf_personal' %}" class="card card-body shadow-sm">
-              <h5 class="mb-3">Reporte de entrada/salida de personal</h5>
-              <div class="mb-3">
-                <label class="form-label">Fecha inicio</label>
-                <input type="date" name="fecha_inicio" class="form-control">
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Fecha fin</label>
-                <input type="date" name="fecha_fin" class="form-control">
-              </div>
-              <button type="submit" class="btn btn-success w-100"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
-            </form>
-          </div>
+{% block content %}
+<div class="d-flex flex-column gap-4">
+    <!-- Header & KPIs Generales -->
+    <div>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <div>
+                <h2 class="welcome-title" style="font-size: 1.6rem;">Centro de Inteligencia y Reportes</h2>
+                <p class="welcome-subtitle">Genera y visualiza reportes interactivos en plataforma antes de descargarlos en PDF oficial</p>
+            </div>
+            <div>
+                <span class="badge-order-pill">
+                    <i class="fas fa-shield-alt text-primary me-1"></i> Modo Auditoría Oficial
+                </span>
+            </div>
         </div>
-      </div>
-    </section>
-    {% endblock %}
 
+        <!-- Metric KPI Cards Superiores -->
+        <div class="metric-row">
+            <div class="metric-card {% if tipo == 'materia_prima' %}border-teal-active{% endif %}">
+                <div class="metric-header">
+                    <span class="metric-label">Módulo Materia Prima</span>
+                    <span class="metric-badge badge-mint"><i class="fas fa-truck-moving"></i> Báscula</span>
+                </div>
+                <div class="metric-value">Pesajes</div>
+                <div class="metric-footer">
+                    <i class="fas fa-weight-hanging text-muted"></i>
+                    <span>Cargas a granel e ingresos de camiones</span>
+                </div>
+            </div>
 
+            <div class="metric-card {% if tipo == 'personal' %}border-teal-active{% endif %}">
+                <div class="metric-header">
+                    <span class="metric-label">Módulo Personas</span>
+                    <span class="metric-badge badge-mint"><i class="fas fa-users-viewfinder"></i> Visitas</span>
+                </div>
+                <div class="metric-value">Asistencia</div>
+                <div class="metric-footer">
+                    <i class="fas fa-id-badge text-muted"></i>
+                    <span>Contratistas, proveedores y personal</span>
+                </div>
+            </div>
 
+            <!-- Hero Card: WeasyPrint Engine -->
+            <div class="metric-card metric-card-hero">
+                <div class="metric-header">
+                    <span class="metric-label">Motor de Gráficos y PDF</span>
+                    <span class="metric-badge"><i class="fas fa-print"></i> WeasyPrint</span>
+                </div>
+                <div class="metric-value" style="font-size: 1.45rem;">Alta Resolución</div>
+                <div class="metric-footer">
+                    <span class="pulse-dot me-1"></span>
+                    <span>Vistas interactivas y exportación vectorial</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Alert if any -->
+    {% if error %}
+    <div class="alert alert-danger d-flex align-items-center gap-2 rounded-3 shadow-sm">
+        <i class="fas fa-exclamation-triangle fa-lg"></i>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Selección y Generación de Reportes -->
+    <div class="row g-4">
+        <!-- Tarjeta 1: Materia Prima -->
+        <div class="col-lg-6">
+            <div class="b-card h-100 d-flex flex-column justify-content-between {% if tipo == 'materia_prima' %}report-card-selected{% endif %}">
+                <div>
+                    <div class="b-card-header">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="user-avatar-circle" style="background: var(--teal-primary); width: 46px; height: 46px; font-size: 1.2rem; color: #ffffff;">
+                                <i class="fas fa-truck-ramp-box"></i>
+                            </div>
+                            <div>
+                                <h3 class="b-card-title">Materia Prima en Romana</h3>
+                                <p class="small text-muted mb-0">Recepción de cargas, camiones y órdenes de compra</p>
+                            </div>
+                        </div>
+                        {% if tipo == 'materia_prima' %}
+                        <span class="badge-mint px-2 py-1 rounded-pill small fw-bold">
+                            <i class="fas fa-check-circle me-1"></i> Mostrando
+                        </span>
+                        {% else %}
+                        <span class="badge-order-pill px-2 py-1 small">Romana</span>
+                        {% endif %}
+                    </div>
+
+                    <form method="get" action="{% url 'reportes' %}#reporte-preview" id="formReporteMP">
+                        <input type="hidden" name="tipo" value="materia_prima">
+                        <input type="hidden" name="generar" value="1">
+
+                        <!-- Presets rápidos -->
+                        <div class="mb-3">
+                            <label class="b-form-label text-muted">Selección rápida de rango:</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReporteMP', 'today')">Hoy</button>
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReporteMP', 'week')">Últimos 7 días</button>
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReporteMP', 'month')">Este mes</button>
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReporteMP', 'all')">Historial Completo</button>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-sm-6">
+                                <label class="b-form-label">Fecha Inicio</label>
+                                <div class="b-input-group">
+                                    <i class="far fa-calendar-alt b-input-icon"></i>
+                                    <input type="date" name="fecha_inicio" class="b-form-control input-start" value="{% if tipo == 'materia_prima' %}{{ fecha_inicio }}{% endif %}">
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="b-form-label">Fecha Fin</label>
+                                <div class="b-input-group">
+                                    <i class="far fa-calendar-alt b-input-icon"></i>
+                                    <input type="date" name="fecha_fin" class="b-form-control input-end" value="{% if tipo == 'materia_prima' %}{{ fecha_fin }}{% endif %}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="d-flex flex-column gap-2">
+                            <button type="submit" class="b-btn b-btn-primary w-100 py-2 fs-6">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                <span>Generar y Visualizar Reporte</span>
+                            </button>
+                            <button type="button" onclick="descargarDirecto('formReporteMP', '{% url 'reporte_pdf_materia_prima' %}')" class="b-btn b-btn-outline w-100 py-2 small">
+                                <i class="fas fa-file-pdf me-2 text-danger"></i>
+                                <span>Descargar PDF Directo</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="mt-3 pt-3 border-top small text-muted">
+                    <i class="fas fa-info-circle me-1 text-primary"></i> Muestra KPIs de cargas, gráficas de rubros, picos semanales y detalle de placas.
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 2: Personal y Visitas -->
+        <div class="col-lg-6">
+            <div class="b-card h-100 d-flex flex-column justify-content-between {% if tipo == 'personal' %}report-card-selected{% endif %}">
+                <div>
+                    <div class="b-card-header">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="user-avatar-circle" style="background: var(--teal-light); width: 46px; height: 46px; font-size: 1.2rem; color: #ffffff;">
+                                <i class="fas fa-users-viewfinder"></i>
+                            </div>
+                            <div>
+                                <h3 class="b-card-title">Acceso de Personal & Visitas</h3>
+                                <p class="small text-muted mb-0">Control de asistencia, contratistas, transportistas y visitas</p>
+                            </div>
+                        </div>
+                        {% if tipo == 'personal' %}
+                        <span class="badge-mint px-2 py-1 rounded-pill small fw-bold">
+                            <i class="fas fa-check-circle me-1"></i> Mostrando
+                        </span>
+                        {% else %}
+                        <span class="badge-order-pill px-2 py-1 small">Seguridad</span>
+                        {% endif %}
+                    </div>
+
+                    <form method="get" action="{% url 'reportes' %}#reporte-preview" id="formReportePersonal">
+                        <input type="hidden" name="tipo" value="personal">
+                        <input type="hidden" name="generar" value="1">
+
+                        <!-- Presets rápidos -->
+                        <div class="mb-3">
+                            <label class="b-form-label text-muted">Selección rápida de rango:</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReportePersonal', 'today')">Hoy</button>
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReportePersonal', 'week')">Últimos 7 días</button>
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReportePersonal', 'month')">Este mes</button>
+                                <button type="button" class="b-btn b-btn-outline b-btn-sm" onclick="setPresetRange('formReportePersonal', 'all')">Historial Completo</button>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-sm-6">
+                                <label class="b-form-label">Fecha Inicio</label>
+                                <div class="b-input-group">
+                                    <i class="far fa-calendar-alt b-input-icon"></i>
+                                    <input type="date" name="fecha_inicio" class="b-form-control input-start" value="{% if tipo == 'personal' %}{{ fecha_inicio }}{% endif %}">
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="b-form-label">Fecha Fin</label>
+                                <div class="b-input-group">
+                                    <i class="far fa-calendar-alt b-input-icon"></i>
+                                    <input type="date" name="fecha_fin" class="b-form-control input-end" value="{% if tipo == 'personal' %}{{ fecha_fin }}{% endif %}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="d-flex flex-column gap-2">
+                            <button type="submit" class="b-btn b-btn-primary w-100 py-2 fs-6">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                <span>Generar y Visualizar Reporte</span>
+                            </button>
+                            <button type="button" onclick="descargarDirecto('formReportePersonal', '{% url 'reporte_pdf_personal' %}')" class="b-btn b-btn-outline w-100 py-2 small">
+                                <i class="fas fa-file-pdf me-2 text-danger"></i>
+                                <span>Descargar PDF Directo</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="mt-3 pt-3 border-top small text-muted">
+                    <i class="fas fa-info-circle me-1 text-primary"></i> Analiza permanencia, motivos frecuentes, empresas visitantes y porcentaje de aprobación.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =======================================================================
+         SECCIÓN DEL REPORTE GENERADO EN PANTALLA (VISTA PREVIA GRÁFICA & PDF)
+         ======================================================================= -->
+    {% if reporte_generado %}
+    <div id="reporte-preview" class="d-flex flex-column gap-4 pt-3">
+        <!-- Banner de Acción Principal y Descarga en PDF -->
+        <div class="b-card report-hero-banner shadow-elevated">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-1">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="user-avatar-circle report-hero-avatar">
+                        {% if tipo == 'materia_prima' %}
+                        <i class="fas fa-truck-ramp-box"></i>
+                        {% else %}
+                        <i class="fas fa-users-viewfinder"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                            <span class="badge report-pill-active">
+                                <i class="fas fa-chart-line me-1"></i> REPORTE GENERADO EN PLATAFORMA
+                            </span>
+                            <span class="badge report-pill-count">
+                                {{ entradas|length }} registros encontrados
+                            </span>
+                            <span class="badge report-pill-module">
+                                {% if tipo == 'materia_prima' %}Módulo Romana{% else %}Módulo Seguridad{% endif %}
+                            </span>
+                        </div>
+                        <h3 class="mb-1 fw-bold text-white" style="font-size: 1.35rem;">
+                            {% if tipo == 'materia_prima' %}
+                            Reporte Gráfico: Recepción de Materia Prima en Romana
+                            {% else %}
+                            Reporte Gráfico: Control de Acceso de Personal y Visitas
+                            {% endif %}
+                        </h3>
+                        <p class="mb-0 small" style="color: rgba(255, 255, 255, 0.85);">
+                            <strong>Período evaluado:</strong> 
+                            {% if fecha_inicio and fecha_fin %}
+                                {{ fecha_inicio }} al {{ fecha_fin }}
+                            {% elif fecha_inicio %}
+                                Desde {{ fecha_inicio }}
+                            {% elif fecha_fin %}
+                                Hasta {{ fecha_fin }}
+                            {% else %}
+                                Historial general completo
+                            {% endif %}
+                            &bull; <strong>Emisión en vivo:</strong> {% now "d/m/Y H:i" %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Botones de Exportación PDF e Impresión -->
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="{% if tipo == 'materia_prima' %}{% url 'reporte_pdf_materia_prima' %}{% else %}{% url 'reporte_pdf_personal' %}{% endif %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" target="_blank" class="b-btn b-btn-download-pdf">
+                        <i class="fas fa-file-pdf fa-lg text-white"></i>
+                        <span>Descargar Reporte Oficial en PDF</span>
+                    </a>
+                    <button type="button" onclick="window.print()" class="b-btn b-btn-outline-light-report">
+                        <i class="fas fa-print"></i>
+                        <span>Imprimir</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. Tarjetas de KPIs y Métricas Resumen -->
+        <div class="metric-row">
+            {% if tipo == 'materia_prima' %}
+                <!-- KPI 1: Materia Prima Líder -->
+                <div class="metric-card metric-card-hero">
+                    <div class="metric-header">
+                        <span class="metric-label">Materia Prima Líder</span>
+                        <span class="metric-badge">{{ stats.top_mp_pct }}%</span>
+                    </div>
+                    <div class="metric-value text-truncate" title="{{ stats.top_mp }}" style="font-size: 1.3rem;">
+                        {{ stats.top_mp }}
+                    </div>
+                    <div class="metric-footer">
+                        <i class="fas fa-trophy text-warning"></i>
+                        <span>{{ stats.top_mp_count }} cargas recibidas en báscula</span>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Total de Cargas -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Volumen Total</span>
+                        <span class="metric-badge badge-mint"><i class="fas fa-truck-moving"></i> Entradas</span>
+                    </div>
+                    <div class="metric-value">{{ stats.total_cargas }}</div>
+                    <div class="metric-footer">
+                        <i class="fas fa-check-double text-success"></i>
+                        <span>Camiones procesados en el período</span>
+                    </div>
+                </div>
+
+                <!-- KPI 3: Placa Más Frecuente -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Placa Más Frecuente</span>
+                        <span class="metric-badge badge-mint">{{ stats.top_placa_count }} viajes</span>
+                    </div>
+                    <div class="metric-value" style="font-family: monospace; letter-spacing: 1px;">
+                        {{ stats.top_placa }}
+                    </div>
+                    <div class="metric-footer">
+                        <i class="fas fa-truck text-muted"></i>
+                        <span>Unidad con mayor rotación</span>
+                    </div>
+                </div>
+
+                <!-- KPI 4: Día Pico -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Día Pico de Recepción</span>
+                        <span class="metric-badge badge-mint"><i class="far fa-calendar-check"></i> Mayor Flujo</span>
+                    </div>
+                    <div class="metric-value" style="font-size: 1.25rem;">{{ stats.pico_dia }}</div>
+                    <div class="metric-footer">
+                        <i class="fas fa-chart-line text-info"></i>
+                        <span>Pico semanal en báscula romana</span>
+                    </div>
+                </div>
+            {% else %}
+                <!-- KPI 1: Motivo Principal -->
+                <div class="metric-card metric-card-hero">
+                    <div class="metric-header">
+                        <span class="metric-label">Motivo Principal</span>
+                        <span class="metric-badge">{{ stats.top_motivo_pct }}%</span>
+                    </div>
+                    <div class="metric-value text-truncate" title="{{ stats.top_motivo }}" style="font-size: 1.3rem;">
+                        {{ stats.top_motivo }}
+                    </div>
+                    <div class="metric-footer">
+                        <i class="fas fa-bullseye text-warning"></i>
+                        <span>{{ stats.top_motivo_count }} visitas registradas</span>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Total Visitas -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Total de Visitas</span>
+                        <span class="metric-badge badge-mint"><i class="fas fa-users"></i> Asistencia</span>
+                    </div>
+                    <div class="metric-value">{{ stats.total_visitas }}</div>
+                    <div class="metric-footer">
+                        <i class="fas fa-user-check text-success"></i>
+                        <span>Personas ingresadas a instalaciones</span>
+                    </div>
+                </div>
+
+                <!-- KPI 3: Empresa Frecuente -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Empresa / Origen Frecuente</span>
+                        <span class="metric-badge badge-mint">{{ stats.top_empresa_count }} registros</span>
+                    </div>
+                    <div class="metric-value text-truncate" style="font-size: 1.25rem;" title="{{ stats.top_empresa }}">
+                        {{ stats.top_empresa }}
+                    </div>
+                    <div class="metric-footer">
+                        <i class="fas fa-building text-muted"></i>
+                        <span>Contratista o proveedor habitual</span>
+                    </div>
+                </div>
+
+                <!-- KPI 4: Tiempo Promedio -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Estadía Promedio</span>
+                        <span class="metric-badge badge-mint">{{ stats.aprobadas_pct }}% aprobadas</span>
+                    </div>
+                    <div class="metric-value">{{ stats.promedio_min }} <span style="font-size: 0.9rem; font-weight: 500;">minutos</span></div>
+                    <div class="metric-footer">
+                        <i class="far fa-clock text-info"></i>
+                        <span>Permanencia media en planta</span>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- 2. Sección Gráfica: Pastel / Donut + Barras Semanales -->
+        <div class="row g-4">
+            <!-- Gráfica 1: Donut Chart -->
+            <div class="col-lg-6">
+                <div class="b-card h-100">
+                    <div class="b-card-header mb-3 pb-2 border-bottom">
+                        <div>
+                            <h3 class="b-card-title">
+                                <i class="fas fa-chart-pie text-success me-2"></i>
+                                {% if tipo == 'materia_prima' %}Distribución por Materia Prima{% else %}Distribución por Motivo de Visita{% endif %}
+                            </h3>
+                            <p class="small text-muted mb-0">Participación porcentual y volumen por rubro</p>
+                        </div>
+                        <span class="badge-mint small fw-bold">Top Categorías</span>
+                    </div>
+
+                    {% if stats.pie_slices %}
+                    <div class="row align-items-center g-3">
+                        <!-- SVG Donut Chart Vectorial -->
+                        <div class="col-sm-5 text-center">
+                            <div class="donut-chart-wrapper position-relative d-inline-block">
+                                <svg width="170" height="170" viewBox="0 0 42 42" class="donut-svg">
+                                    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--border-light)" stroke-width="4.5"></circle>
+                                    {% for s in stats.pie_slices %}
+                                    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" 
+                                            stroke="{{ s.color }}" stroke-width="4.5" 
+                                            stroke-dasharray="{{ s.dasharray }}" 
+                                            stroke-dashoffset="{{ s.dashoffset }}"
+                                            class="donut-segment">
+                                        <title>{{ s.name }}: {{ s.count }} ({{ s.pct }}%)</title>
+                                    </circle>
+                                    {% endfor %}
+                                    <text x="21" y="19.8" font-size="3.4" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle" fill="var(--teal-text)" font-weight="bold">
+                                        {% if tipo == 'materia_prima' %}TOP MP{% else %}VISITAS{% endif %}
+                                    </text>
+                                    <text x="21" y="24" font-size="2.6" font-family="'Plus Jakarta Sans', sans-serif" text-anchor="middle" fill="var(--text-muted)">
+                                        {% if tipo == 'materia_prima' %}{{ stats.total_cargas }} cargas{% else %}{{ stats.total_visitas }} reg.{% endif %}
+                                    </text>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Leyenda Detallada con Barras de Progreso -->
+                        <div class="col-sm-7">
+                            <div class="d-flex flex-column gap-2">
+                                {% for s in stats.pie_slices %}
+                                <div class="p-2 rounded-3 chart-legend-row" style="background: var(--bg-canvas);">
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                        <div class="d-flex align-items-center gap-2 text-truncate">
+                                            <span class="report-color-dot" style="background-color: {{ s.color }};"></span>
+                                            <span class="small fw-semibold text-truncate" title="{{ s.name }}" style="color: var(--text-dark);">{{ s.name }}</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge-order-pill py-0 px-2" style="font-size: 0.72rem;">{{ s.count }}</span>
+                                            <span class="small fw-bold" style="color: {{ s.color }}; min-width: 42px; text-align: right;">{{ s.pct }}%</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress" style="height: 4px; background: var(--border-medium); border-radius: 2px;">
+                                        <div class="progress-bar" style="width: {{ s.pct }}%; background-color: {{ s.color }};"></div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 opacity-50"></i>
+                        <p class="small mb-0">No hay datos suficientes para graficar en el rango seleccionado.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Gráfica 2: Bar Chart Semanal -->
+            <div class="col-lg-6">
+                <div class="b-card h-100">
+                    <div class="b-card-header mb-3 pb-2 border-bottom">
+                        <div>
+                            <h3 class="b-card-title">
+                                <i class="fas fa-chart-column text-success me-2"></i>
+                                {% if tipo == 'materia_prima' %}Afluencia Semanal en Romana{% else %}Afluencia Semanal de Visitas{% endif %}
+                            </h3>
+                            <p class="small text-muted mb-0">Distribución de ingresos de Lunes a Domingo</p>
+                        </div>
+                        <span class="badge-mint small fw-bold">Flujo Diario</span>
+                    </div>
+
+                    {% if stats.bar_chart %}
+                    <div class="bar-chart-container py-2">
+                        <svg width="100%" height="150" viewBox="0 0 360 145" class="bar-chart-svg">
+                            <defs>
+                                <linearGradient id="barTealGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#10b981" />
+                                    <stop offset="100%" stop-color="#0f3d34" />
+                                </linearGradient>
+                            </defs>
+                            <!-- Líneas de escala tenue -->
+                            <line x1="20" y1="35" x2="350" y2="35" stroke="var(--border-light)" stroke-dasharray="3,3" />
+                            <line x1="20" y1="75" x2="350" y2="75" stroke="var(--border-light)" stroke-dasharray="3,3" />
+                            <line x1="20" y1="115" x2="350" y2="115" stroke="var(--border-medium)" stroke-width="1.5" />
+
+                            {% for b in stats.bar_chart %}
+                            <!-- Barra -->
+                            <rect x="{{ b.x }}" y="{{ b.y }}" width="28" height="{{ b.height }}" rx="5" 
+                                  fill="url(#barTealGradient)" class="report-bar-rect">
+                                <title>{{ b.label }}: {{ b.count }} ingresos</title>
+                            </rect>
+                            <!-- Etiqueta del valor -->
+                            <text x="{{ b.x|add:14 }}" y="{{ b.y|add:-4 }}" font-size="10" font-family="'Plus Jakarta Sans', sans-serif" 
+                                  font-weight="700" text-anchor="middle" fill="var(--teal-text)">
+                                {{ b.count }}
+                            </text>
+                            <!-- Etiqueta del día -->
+                            <text x="{{ b.x|add:14 }}" y="132" font-size="10.5" font-family="'Plus Jakarta Sans', sans-serif" 
+                                  font-weight="600" text-anchor="middle" fill="var(--text-muted)">
+                                {{ b.label }}
+                            </text>
+                            {% endfor %}
+                        </svg>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between p-2 rounded-3 mt-2" style="background: var(--bg-canvas);">
+                        <div class="small text-muted">
+                            <i class="far fa-calendar-alt text-primary me-1"></i>
+                            <span>Día de mayor flujo operativo:</span>
+                        </div>
+                        <span class="badge-mint fw-bold">
+                            {% if tipo == 'materia_prima' %}{{ stats.pico_dia }}{% else %}{{ stats.top_motivo }}{% endif %}
+                        </span>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 opacity-50"></i>
+                        <p class="small mb-0">No hay registros para la comparativa semanal.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Tabla Detallada de Auditoría de Registros -->
+        <div class="b-card">
+            <div class="b-card-header flex-wrap gap-3 pb-3 border-bottom">
+                <div>
+                    <h3 class="b-card-title">
+                        <i class="fas fa-list-check text-primary me-2"></i>
+                        Bitácora Cronológica de Registros
+                    </h3>
+                    <p class="small text-muted mb-0">
+                        Mostrando {{ entradas|length }} movimientos registrados en el período
+                    </p>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="b-input-group" style="min-width: 260px;">
+                        <i class="fas fa-search b-input-icon"></i>
+                        <input type="text" id="reportTableFilter" class="b-form-control b-form-control-sm" placeholder="Filtrar en pantalla...">
+                    </div>
+                    <a href="{% if tipo == 'materia_prima' %}{% url 'reporte_pdf_materia_prima' %}{% else %}{% url 'reporte_pdf_personal' %}{% endif %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" target="_blank" class="b-btn b-btn-primary b-btn-sm text-nowrap">
+                        <i class="fas fa-file-pdf me-1"></i> Descargar PDF
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive mt-3">
+                <table class="b-table w-100" id="tablaDetalleReporte">
+                    <thead>
+                        {% if tipo == 'materia_prima' %}
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>N° Orden</th>
+                            <th>Placa Vehículo</th>
+                            <th>Materia Prima / Descripción</th>
+                            <th>Pendiente</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Visitante / Personal</th>
+                            <th>Cédula</th>
+                            <th>Empresa / Origen</th>
+                            <th>Motivo de Ingreso</th>
+                            <th>Autorizado Por</th>
+                            <th>Duración</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                        {% endif %}
+                    </thead>
+                    <tbody>
+                        {% if entradas %}
+                            {% for e in entradas %}
+                                {% if tipo == 'materia_prima' %}
+                                <tr>
+                                    <td class="text-nowrap" style="color: var(--text-dark); font-weight: 500;">
+                                        <i class="far fa-clock text-muted me-1"></i>
+                                        {{ e.fecha_hora|date:"d/m/Y H:i:s" }}
+                                    </td>
+                                    <td>
+                                        <span class="badge-order-pill">#{{ e.numero_orden }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold" style="color: var(--text-dark); letter-spacing: 0.5px;">
+                                            <i class="fas fa-truck text-muted me-1"></i> {{ e.placa_vehiculo }}
+                                        </span>
+                                    </td>
+                                    <td style="color: var(--text-dark);">
+                                        {{ e.descripcion|default:"Materia Prima Estándar" }}
+                                    </td>
+                                    <td>
+                                        {% if e.pendiente %}
+                                        <span class="badge-order-pill">{{ e.pendiente }} TM</span>
+                                        {% else %}
+                                        <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge-mint py-1 px-2 rounded-pill small fw-bold">
+                                            <i class="fas fa-check-circle me-1"></i> Registrado
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td class="text-nowrap" style="color: var(--text-dark); font-weight: 500;">
+                                        <i class="far fa-clock text-muted me-1"></i>
+                                        {{ e.hora_entrada|date:"d/m/Y H:i:s" }}
+                                    </td>
+                                    <td style="color: var(--text-dark); font-weight: 600;">
+                                        <i class="fas fa-user text-muted me-1"></i>
+                                        {{ e.nombre }} {{ e.apellido }}
+                                    </td>
+                                    <td>
+                                        <span class="badge-order-pill">{{ e.cedula }}</span>
+                                    </td>
+                                    <td style="color: var(--text-dark);">
+                                        {{ e.empresa|default:"Particular" }}
+                                    </td>
+                                    <td style="color: var(--text-dark);">
+                                        {{ e.motivo_ingreso|default:"Visita" }}
+                                    </td>
+                                    <td class="small text-muted">
+                                        {{ e.autorizado_por|default:"Vigilancia" }}
+                                    </td>
+                                    <td>
+                                        {% if e.tiempo_visita %}
+                                        <span class="badge-mint py-1 px-2 rounded-pill small">{{ e.tiempo_visita }} min</span>
+                                        {% elif e.hora_salida %}
+                                        <span class="badge-order-pill py-1 px-2 small">Finalizada</span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark py-1 px-2 rounded-pill small">En Planta</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if e.estado_visita == 'aprobada' %}
+                                        <span class="badge-mint py-1 px-2 rounded-pill small fw-bold">Aprobada</span>
+                                        {% else %}
+                                        <span class="badge bg-danger text-white py-1 px-2 rounded-pill small fw-bold">Negada</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="{% if tipo == 'materia_prima' %}6{% else %}8{% endif %}" class="text-center py-5 text-muted">
+                                <i class="fas fa-folder-open fa-3x mb-3 opacity-50"></i>
+                                <h5 style="color: var(--text-dark);">No hay registros en este rango de fechas</h5>
+                                <p class="small mb-0">Intenta ampliando el rango de fechas en los filtros superiores o seleccionando "Historial Completo".</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Toolbar de la Tabla con Botón de Descarga -->
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 mt-3 border-top">
+                <div class="small text-muted">
+                    Total de filas visibles: <strong id="visibleRowCount" style="color: var(--text-dark);">{{ entradas|length }}</strong> de {{ entradas|length }}
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% if tipo == 'materia_prima' %}{% url 'reporte_pdf_materia_prima' %}{% else %}{% url 'reporte_pdf_personal' %}{% endif %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" target="_blank" class="b-btn b-btn-primary py-2 px-3">
+                        <i class="fas fa-file-pdf me-2"></i> Descargar Reporte en PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+/* Estilos Específicos para el Módulo de Reportes Bankio */
+.border-teal-active {
+    border: 2px solid var(--teal-text) !important;
+}
+
+.report-card-selected {
+    border: 2px solid var(--teal-text) !important;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.12) !important;
+}
+
+.report-hero-banner {
+    background: linear-gradient(135deg, #092c25 0%, #0d4237 60%, #081d18 100%);
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem 1.75rem;
+}
+
+.report-hero-avatar {
+    background: rgba(255, 255, 255, 0.12);
+    width: 54px;
+    height: 54px;
+    font-size: 1.4rem;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.report-pill-active {
+    background: rgba(16, 185, 129, 0.25) !important;
+    color: #6ee7b7 !important;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+}
+
+.report-pill-count {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+}
+
+.report-pill-module {
+    background: rgba(14, 165, 233, 0.25) !important;
+    color: #7dd3fc !important;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+}
+
+.b-btn-download-pdf {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 700 !important;
+    padding: 0.65rem 1.25rem !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 0.92rem !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.b-btn-download-pdf:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    color: #ffffff !important;
+}
+
+.b-btn-outline-light-report {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    padding: 0.65rem 1rem !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 0.92rem !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s ease;
+}
+
+.b-btn-outline-light-report:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
+
+.report-color-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.donut-segment {
+    transition: stroke-width 0.3s ease;
+}
+
+.donut-segment:hover {
+    stroke-width: 6;
+    cursor: pointer;
+}
+
+.report-bar-rect {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.report-bar-rect:hover {
+    opacity: 0.85;
+    cursor: pointer;
+}
+</style>
+
+<script>
+// Función para seleccionar rangos rápidos de fecha
+function setPresetRange(formId, preset) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    const startInput = form.querySelector('.input-start');
+    const endInput = form.querySelector('.input-end');
+    
+    const today = new Date();
+    const formatDate = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    if (preset === 'today') {
+        startInput.value = formatDate(today);
+        endInput.value = formatDate(today);
+    } else if (preset === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 7);
+        startInput.value = formatDate(weekAgo);
+        endInput.value = formatDate(today);
+    } else if (preset === 'month') {
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        startInput.value = formatDate(monthStart);
+        endInput.value = formatDate(today);
+    } else if (preset === 'all') {
+        startInput.value = '';
+        endInput.value = '';
+    }
+}
+
+// Función para descargar PDF directo respetando los filtros ingresados en el formulario
+function descargarDirecto(formId, pdfUrl) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    const startInput = form.querySelector('.input-start');
+    const endInput = form.querySelector('.input-end');
+
+    const params = new URLSearchParams();
+    if (startInput && startInput.value) params.append('fecha_inicio', startInput.value);
+    if (endInput && endInput.value) params.append('fecha_fin', endInput.value);
+
+    const fullUrl = pdfUrl + (params.toString() ? '?' + params.toString() : '');
+    window.open(fullUrl, '_blank');
+}
+
+// Filtro en tiempo real para la tabla detallada del reporte
+document.addEventListener('DOMContentLoaded', function() {
+    const filterInput = document.getElementById('reportTableFilter');
+    const table = document.getElementById('tablaDetalleReporte');
+    const countDisplay = document.getElementById('visibleRowCount');
+
+    if (filterInput && table) {
+        filterInput.addEventListener('keyup', function() {
+            const query = this.value.toLowerCase().trim();
+            const rows = table.querySelectorAll('tbody tr');
+            let visibleCount = 0;
+
+            rows.forEach(function(row) {
+                // Si es la fila de mensaje vacío, ignorar
+                if (row.cells.length === 1) return;
+                
+                const text = row.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (countDisplay) {
+                countDisplay.textContent = visibleCount;
+            }
+        });
+    }
+
+    // Scroll suave a la sección del reporte generado si se solicitó en la URL
+    if (window.location.hash === '#reporte-preview') {
+        const previewEl = document.getElementById('reporte-preview');
+        if (previewEl) {
+            previewEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+});
+</script>
+{% endblock %}

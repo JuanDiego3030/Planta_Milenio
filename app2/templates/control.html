@@ -1,353 +1,422 @@
-    {% extends 'base.html' %}
-     {% load static %}
-   
+{% extends 'base.html' %}
+{% load static %}
 
-    {% block title %}Planta Milenio{% endblock %}
+{% block title %}Control de Entradas - Materia Prima | AgroTrack{% endblock %}
 
-    {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <style>
-        /* Mantener el footer en la parte inferior */
-        html, body { height: 100%; }
-        .main-content { flex: 1 0 auto; }
-        .card-header.busqueda-header {
-            background: var(--primary-dark);
-            color: #fff !important;
-            font-size: 1.2rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            border-radius: 0.5rem 0.5rem 0 0;
-        }
-        .card-header.busqueda-header .fw-bold,
-        .card-header.busqueda-header .small,
-        .card-header.busqueda-header strong { color: #fff !important; }
-        .btn-cargar-datos { background: #4da3ff !important; color: #fff !important; border: none; }
-        .btn-cargar-datos:hover, .btn-cargar-datos:focus { background: #339cff !important; color: #fff !important; }
-    </style>
-    {% endblock %}
-
-    {% block content %}
-    <section class="section section-light main-content" style="padding-top: 0;">
-        <div class="container">
-            <h2 class="section-title" style="font-size:2rem;"> Control de acceso planta milenio</h2>
-            <div class="mb-3">
-              <form method="get" class="row g-3 mb-4 search-box-sticky" id="consultaForm" autocomplete="off">
-                <div class="col-md-4">
-                    <input type="text" name="fact_num" class="form-control" placeholder="Número de orden" value="{{ request.GET.fact_num|default_if_none:'' }}">
+{% block content %}
+<div class="d-flex flex-column gap-4">
+    <!-- HERO SECTION: Búsqueda Destacada de Orden de Compra -->
+    <div class="hero-search-card">
+        <div class="hero-search-content">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <div class="hero-search-badge">
+                    <i class="fas fa-barcode"></i>
+                    <span>Terminal de Recepción &bull; Profit Plus</span>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Buscar</button>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light text-dark border small">
+                        <i class="fas fa-server me-1 text-success"></i> Servidor Profit Conectado
+                    </span>
                 </div>
-              </form>
             </div>
 
-            {% if registros and registros|length > 0 %}
-                {% regroup registros by fact_num as fact_groups %}
-                <div class="d-flex flex-column gap-4">
-                {% for group in fact_groups %}
-                    {% with first=group.list.0 %}
-                    <div class="card shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center busqueda-header">
-                            <div class="text-start w-100">
-                                <strong>{{ first.prov_des }}</strong>
-                                <div class="small">Fecha: {{ first.fec_emis|date:"m/d/Y" }}</div>
-                            </div>
-                            <div class="text-end d-flex flex-column align-items-end gap-1">
-                                <div class="fw-bold">Orden: {{ group.grouper }}</div>
-                                <div class="small">
-                                    Status:
-                                    {% if first.status|stringformat:"s" == "0" %}
-                                        <span class="badge bg-secondary">Sin procesar</span>
-                                    {% elif first.status|stringformat:"s" == "1" %}
-                                        <span class="badge bg-warning text-dark">Semi procesado</span>
-                                    {% elif first.status|stringformat:"s" == "2" %}
-                                        <span class="badge bg-success">Procesado</span>
-                                    {% elif first.status|stringformat:"s" == "A" %}
-                                        <span class="badge bg-info text-dark">Activa</span>
-                                    {% elif first.status|stringformat:"s" == "C" %}
-                                        <span class="badge bg-dark">Cerrada</span>
-                                    {% else %}
-                                        <span class="badge bg-light text-dark">{{ first.status }}</span>
-                                    {% endif %}
-                                </div>
-                                <button type="button" class="btn btn-cargar-datos btn-sm mt-1" data-bs-toggle="modal" data-bs-target="#validarModal{{ group.grouper }}">
-                                    <i class="fas fa-plus-circle"></i> Cargar datos
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Numero de orden</th>
-                                            <th>Descripción</th>
-                                            <th class="text-end">Código de producto</th>
-                                            <th class="text-end">ID Producto</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for r in group.list %}
-                                        <tr>
-                                            <td>{{ r.fact_num }}</td>
-                                            <td>{{ r.art_des|default:r.descrip }}</td>
-                                            <td class="text-end">{{ r.campo8 }}</td>
-                                            <td class="text-end">{{ r.producto_id }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Modal general por orden -->
-                    <div class="modal fade" id="validarModal{{ group.grouper }}" tabindex="-1" aria-labelledby="validarModalLabel{{ group.grouper }}" aria-hidden="true" style="z-index: 1300;">
-                        <div class="modal-dialog modal-lg modal-dialog-centered" style="margin-top: 60px;">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="validarModalLabel{{ group.grouper }}">Cargar datos de la Orden {{ group.grouper }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                                </div>
-                                <form method="post" action="" id="validarForm{{ group.grouper }}">
-                                    {% csrf_token %}
-                                    <div class="modal-body">
-                                        <div class="row g-2">
-                                            <div class="col-md-6 mb-2">
-                                                <label for="productoSelect{{ group.grouper }}" class="form-label">Producto a cargar</label>
-                                                <select class="form-select" id="productoSelect{{ group.grouper }}" name="producto_id" required>
-                                                    <option value="" selected disabled>Seleccione...</option>
-                                                    {% for r in group.list %}
-                                                        <option value="{{ r.producto_id }}"
-                                                            data-campo8="{{ r.campo8 }}"
-                                                            data-descrip="{{ r.art_des|default:r.descrip }}"
-                                                            data-reng_num="{{ r.reng_num }}"
-                                                            data-co_art="{{ r.co_art }}">
-                                                            {{ r.art_des|default:r.descrip }} (Código: {{ r.campo8 }})
-                                                        </option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label">RIF de la Empresa de Transporte</label>
-                                                <input type="text" name="empresa_rif" class="form-control" id="empresaRifInput{{ group.grouper }}" autocomplete="off" required>
-                                                <div class="list-group position-absolute w-100" id="empresaRifList{{ group.grouper }}"></div>
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label">Cédula del Conductor</label>
-                                                <input type="text" name="conductor" class="form-control" id="conductorInput{{ group.grouper }}" autocomplete="off" required>
-                                                <div class="list-group position-absolute w-100" id="conductorList{{ group.grouper }}"></div>
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label">Placa del Vehículo</label>
-                                                <input type="text" name="vehiculo" class="form-control" id="vehiculoInput{{ group.grouper }}" autocomplete="off" required>
-                                                <div class="list-group position-absolute w-100" id="vehiculoList{{ group.grouper }}"></div>
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label">Placa del Remolque</label>
-                                                <input type="text" name="vehiculo_remolque" class="form-control" id="remolqueInput{{ group.grouper }}" autocomplete="off">
-                                                <div class="list-group position-absolute w-100" id="remolqueList{{ group.grouper }}"></div>
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label">Origen</label>
-                                                <input type="text" name="destino" class="form-control" id="destinoInput{{ group.grouper }}" autocomplete="off" required>
-                                                <div class="list-group position-absolute w-100" id="destinoList{{ group.grouper }}"></div>
-                                            </div>
-                                        </div>
-                                        <div class="mb-2 small">
-                                            <strong>Proveedor:</strong> {{ first.prov_des }}<br>
-                                            <strong>Fecha:</strong> {{ first.fec_emis }}<br>
-                                            <strong>Status:</strong>
-                                            {% if first.status|stringformat:"s" == "0" %}
-                                                Sin procesar
-                                            {% elif first.status|stringformat:"s" == "1" %}
-                                                Semi procesado
-                                            {% elif first.status|stringformat:"s" == "2" %}
-                                                Procesado
-                                            {% elif first.status|stringformat:"s" == "A" %}
-                                                Activa
-                                            {% elif first.status|stringformat:"s" == "C" %}
-                                                Cerrada
-                                            {% else %}
-                                                {{ first.status }}
-                                            {% endif %}
-                                        </div>
-                                        <input type="hidden" name="validar_fact_num" value="{{ group.grouper }}">
-                                        <input type="hidden" name="proveedor_id" value="{{ first.co_cli }}">
-                                        <input type="hidden" name="proveedor_nombre" value="{{ first.prov_des }}">
-                                        <input type="hidden" name="fecha_orden" value="{{ first.fec_emis }}">
-                                        <input type="hidden" name="status" value="{{ first.status }}">
-                                        <input type="hidden" name="producto_codigo" id="productoCodigoHidden{{ group.grouper }}">
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                        <button type="submit" class="btn btn-success">Confirmar carga</button>
-                                        <a href="http://192.168.0.60/romana" class="btn btn-outline-primary" target="_blank">Ir a registro</a>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% endwith %}
-                {% endfor %}
-                </div>
-            {% else %}
-                <div class="card shadow-sm">
-                    <div class="card-header busqueda-header">
-                        <strong>Información de orden de compra</strong>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Numero de orden</th>
-                                        <th>Descripción</th>
-                                        <th class="text-end">Código de producto	</th>
-                                        <th class="text-end">ID Producto</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted">En espera de consultas...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            {% endif %}
+            <h2 class="hero-search-heading">Control de Entradas de Materia Prima</h2>
+            <p class="hero-search-subheading">
+                Ingresa el número de orden de compra para consultar renglones de producto, validar estatus con el proveedor y registrar los datos de transporte en romana.
+            </p>
 
-                        <!-- Buscador de ingresos para historial -->
-                        <form method="get" action="" class="row g-3 align-items-end mb-3 mt-5">
-                            <div class="col-md-4">
-                                <input type="text" name="buscar_historial" class="form-control" placeholder="Buscar en historial por número de orden, placa o descripción" value="{{ request.GET.buscar_historial|default:'' }}">
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-outline-primary w-100">Buscar</button>
-                            </div>
-                            <div class="col-md-2">
-                                <a href="?" class="btn btn-outline-secondary w-100">Limpiar</a>
-                            </div>
-                        </form>
-
-                        <!-- Historial de ingresos SIEMPRE visible -->
-                        <div class="card">
-                                <div class="card-header bg-primary text-white">
-                                        <i class="fas fa-history"></i> Historial de ingresos
-                                </div>
-                                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-striped mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Fecha y hora</th>
-                                    <th>Número de orden</th>
-                                    <th>Placa del vehículo</th>
-                                    <th>Descripción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% if historial and historial|length > 0 %}
-                                    {% for h in historial %}
-                                    <tr>
-                                        <td>{{ h.fecha_hora|date:"m/d/Y H:i:s" }}</td>
-                                        <td>{{ h.numero_orden }}</td>
-                                        <td>{{ h.placa_vehiculo }}</td>
-                                        <td>{{ h.descripcion }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="4" class="text-center text-muted">No hay ingresos registrados.</td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- PAGINACIÓN DEL HISTORIAL -->
-                    {% if historial_paginator.num_pages > 1 %}
-                    <nav aria-label="Historial paginación" class="mt-2">
-                        <ul class="pagination justify-content-end mb-0">
-                            {% if historial_has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ historial_previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Anterior">
-                                        <span aria-hidden="true">&laquo;</span>
-                                    </a>
-                                </li>
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-                            {% endif %}
-                            {% for num in historial_paginator.page_range %}
-                                {% if num == historial_page %}
-                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                                {% elif num >= historial_page|add:'-2' and num <= historial_page|add:'2' %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ num }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">{{ num }}</a>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                            {% if historial_has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ historial_next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Siguiente">
-                                        <span aria-hidden="true">&raquo;</span>
-                                    </a>
-                                </li>
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-                            {% endif %}
-                        </ul>
-                    </nav>
+            <!-- Formulario Principal Destacado (Input de Alto Protagonismo) -->
+            <form method="get" class="hero-search-form" id="consultaForm" autocomplete="off">
+                <div class="hero-search-input-box">
+                    <i class="fas fa-barcode hero-icon-barcode"></i>
+                    <input type="text" 
+                           name="fact_num" 
+                           id="factNumInput" 
+                           class="hero-search-input" 
+                           placeholder="Ingresa el número de orden de compra... (Ej. 14250)" 
+                           value="{{ request.GET.fact_num|default_if_none:'' }}" 
+                           autofocus 
+                           required>
+                    
+                    {% if request.GET.fact_num %}
+                    <a href="{% url 'control' %}" class="hero-btn-clear" title="Nueva búsqueda / Limpiar">
+                        <i class="fas fa-times"></i>
+                    </a>
                     {% endif %}
+
+                    <button type="submit" class="hero-search-submit-btn">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <span>Consultar Orden</span>
+                    </button>
                 </div>
+
+                <div class="hero-search-hints">
+                    <span><i class="fas fa-keyboard me-1 text-muted"></i> Presiona <kbd>Enter</kbd> para buscar</span>
+                    <span><i class="fas fa-truck-moving me-1 text-muted"></i> Validación en romana Ceres</span>
+                    <span><i class="fas fa-check-double me-1 text-success"></i> Acceso en tiempo real</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Fila de Métricas / KPIs -->
+    <div class="metric-row">
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-label">Órdenes en Consulta</span>
+                <span class="metric-badge badge-mint"><i class="fas fa-layer-group"></i> Profit</span>
+            </div>
+            <div class="metric-value">
+                {% if registros %}{{ registros|length }}{% else %}0{% endif %}
+            </div>
+            <div class="metric-footer">
+                <i class="fas fa-file-invoice text-muted"></i>
+                <span>Renglones activos en la orden actual</span>
             </div>
         </div>
-    </section>
 
-    {% endblock %}
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-label">Historial de Ingresos</span>
+                <span class="metric-badge badge-mint"><i class="fas fa-truck-fast"></i> Recepción</span>
+            </div>
+            <div class="metric-value">
+                {{ historial|length }}
+            </div>
+            <div class="metric-footer">
+                <i class="fas fa-calendar-check text-muted"></i>
+                <span>Cargas procesadas registradas</span>
+            </div>
+        </div>
 
-    {% block extra_scripts %}
-    <script>
-    // Función para manejar el botón "Cargar datos"
-    function handleCargarDatos(status, modalId, descripcion, pendiente) {
-        var pendienteNum = 0;
-        if (typeof pendiente === 'string') {
-            pendienteNum = parseFloat(pendiente.replace(',', '.'));
-        } else {
-            pendienteNum = pendiente;
-        }
-        if (pendienteNum === 0) {
-            showToast("No se puede procesar este producto porque ya fue recibido (pendiente = 0).", "warning");
+        <!-- Hero Metric Card (Dark Teal) -->
+        <div class="metric-card metric-card-hero">
+            <div class="metric-header">
+                <span class="metric-label">Báscula / Romana</span>
+                <span class="metric-badge"><i class="fas fa-scale-balanced"></i> En Línea</span>
+            </div>
+            <div class="metric-value" style="font-size: 1.45rem;">Romana Milenio</div>
+            <div class="metric-footer">
+                <span class="pulse-dot me-1"></span>
+                <span>Conexión Ceres / SQL Server activa</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultados de la Orden de Compra Consultada -->
+    {% if registros and registros|length > 0 %}
+        {% regroup registros by fact_num as fact_groups %}
+        <div class="d-flex flex-column gap-3">
+        {% for group in fact_groups %}
+            {% with first=group.list.0 %}
+            <div class="b-card">
+                <div class="b-card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge" style="background: var(--teal-primary); color: #fff; border-radius: 8px; font-size: 0.95rem; padding: 6px 12px; font-weight: 700;">
+                                Orden #{{ group.grouper }}
+                            </span>
+                            <h3 class="mb-0 fw-bold" style="font-size: 1.25rem;">{{ first.prov_des }}</h3>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            <i class="far fa-calendar-alt me-1"></i> Fecha emisión: {{ first.fec_emis|date:"d/m/Y" }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <div>
+                            {% if first.status|stringformat:"s" == "0" %}
+                                <span class="status-pill status-pending"><i class="fas fa-clock"></i> Sin procesar</span>
+                            {% elif first.status|stringformat:"s" == "1" %}
+                                <span class="status-pill status-warning"><i class="fas fa-spinner"></i> Semi procesado</span>
+                            {% elif first.status|stringformat:"s" == "2" %}
+                                <span class="status-pill status-processed"><i class="fas fa-check-circle"></i> Procesado</span>
+                            {% elif first.status|stringformat:"s" == "A" %}
+                                <span class="status-pill status-info"><i class="fas fa-bolt"></i> Activa</span>
+                            {% elif first.status|stringformat:"s" == "C" %}
+                                <span class="status-pill status-rejected"><i class="fas fa-lock"></i> Cerrada</span>
+                            {% else %}
+                                <span class="status-pill bg-light">{{ first.status }}</span>
+                            {% endif %}
+                        </div>
+
+                        <button type="button" class="b-btn b-btn-primary" data-bs-toggle="modal" data-bs-target="#validarModal{{ group.grouper }}">
+                            <i class="fas fa-truck-arrow-right"></i>
+                            <span>Cargar Datos a Romana</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Detalle de Renglones de la Orden -->
+                <div class="table-responsive rounded-3 border">
+                    <table class="b-table">
+                        <thead>
+                            <tr>
+                                <th>N° Orden</th>
+                                <th>Descripción del Producto</th>
+                                <th class="text-end">Código de Producto</th>
+                                <th class="text-end">ID Producto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in group.list %}
+                            <tr>
+                                <td class="fw-bold">#{{ r.fact_num }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ r.art_des|default:r.descrip }}</div>
+                                    <small class="text-muted">Renglón: {{ r.reng_num|default:"-" }}</small>
+                                </td>
+                                <td class="text-end"><span class="badge-order-pill">{{ r.campo8 }}</span></td>
+                                <td class="text-end text-muted">{{ r.producto_id }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal para Cargar Datos de la Orden a Romana (Bankio Style) -->
+            <div class="modal fade" id="validarModal{{ group.grouper }}" tabindex="-1" aria-labelledby="validarModalLabel{{ group.grouper }}" aria-hidden="true" style="z-index: 2000;">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content b-modal">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="validarModalLabel{{ group.grouper }}">
+                                <i class="fas fa-truck-arrow-right me-2"></i>Cargar Datos de Transporte - Orden #{{ group.grouper }}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <form method="post" action="" id="validarForm{{ group.grouper }}">
+                            {% csrf_token %}
+                            <div class="modal-body">
+                                <div class="p-3 mb-3 rounded-3" style="background: var(--teal-subtle); border: 1px solid rgba(15, 61, 52, 0.1);">
+                                    <div class="row small">
+                                        <div class="col-sm-6 mb-1">
+                                            <strong>Proveedor:</strong> {{ first.prov_des }}
+                                        </div>
+                                        <div class="col-sm-6 mb-1">
+                                            <strong>Fecha Orden:</strong> {{ first.fec_emis }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="productoSelect{{ group.grouper }}" class="b-form-label">Producto a recibir <span class="text-danger">*</span></label>
+                                        <select class="b-form-control" id="productoSelect{{ group.grouper }}" name="producto_id" required>
+                                            <option value="" selected disabled>Seleccionar producto...</option>
+                                            {% for r in group.list %}
+                                                <option value="{{ r.producto_id }}"
+                                                    data-campo8="{{ r.campo8 }}"
+                                                    data-descrip="{{ r.art_des|default:r.descrip }}"
+                                                    data-reng_num="{{ r.reng_num }}"
+                                                    data-co_art="{{ r.co_art }}">
+                                                    {{ r.art_des|default:r.descrip }} (Código: {{ r.campo8 }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6 position-relative">
+                                        <label class="b-form-label">RIF Empresa de Transporte <span class="text-danger">*</span></label>
+                                        <div class="b-input-group">
+                                            <i class="fas fa-building b-input-icon"></i>
+                                            <input type="text" name="empresa_rif" class="b-form-control" id="empresaRifInput{{ group.grouper }}" placeholder="Ej. J-12345678-0" autocomplete="off" required>
+                                        </div>
+                                        <div class="autocomplete-dropdown list-group position-absolute w-100" id="empresaRifList{{ group.grouper }}"></div>
+                                    </div>
+
+                                    <div class="col-md-6 position-relative">
+                                        <label class="b-form-label">Cédula del Conductor <span class="text-danger">*</span></label>
+                                        <div class="b-input-group">
+                                            <i class="fas fa-id-card b-input-icon"></i>
+                                            <input type="text" name="conductor" class="b-form-control" id="conductorInput{{ group.grouper }}" placeholder="Ej. V-12345678" autocomplete="off" required>
+                                        </div>
+                                        <div class="autocomplete-dropdown list-group position-absolute w-100" id="conductorList{{ group.grouper }}"></div>
+                                    </div>
+
+                                    <div class="col-md-6 position-relative">
+                                        <label class="b-form-label">Placa del Vehículo / Chuto <span class="text-danger">*</span></label>
+                                        <div class="b-input-group">
+                                            <i class="fas fa-truck b-input-icon"></i>
+                                            <input type="text" name="vehiculo" class="b-form-control" id="vehiculoInput{{ group.grouper }}" placeholder="Ej. A12BC3D" autocomplete="off" required>
+                                        </div>
+                                        <div class="autocomplete-dropdown list-group position-absolute w-100" id="vehiculoList{{ group.grouper }}"></div>
+                                    </div>
+
+                                    <div class="col-md-6 position-relative">
+                                        <label class="b-form-label">Placa del Remolque / Tanque</label>
+                                        <div class="b-input-group">
+                                            <i class="fas fa-trailer b-input-icon"></i>
+                                            <input type="text" name="vehiculo_remolque" class="b-form-control" id="remolqueInput{{ group.grouper }}" placeholder="Opcional" autocomplete="off">
+                                        </div>
+                                        <div class="autocomplete-dropdown list-group position-absolute w-100" id="remolqueList{{ group.grouper }}"></div>
+                                    </div>
+
+                                    <div class="col-md-6 position-relative">
+                                        <label class="b-form-label">Origen / Procedencia <span class="text-danger">*</span></label>
+                                        <div class="b-input-group">
+                                            <i class="fas fa-location-dot b-input-icon"></i>
+                                            <input type="text" name="destino" class="b-form-control" id="destinoInput{{ group.grouper }}" placeholder="Ciudad o Planta de origen" autocomplete="off" required>
+                                        </div>
+                                        <div class="autocomplete-dropdown list-group position-absolute w-100" id="destinoList{{ group.grouper }}"></div>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="validar_fact_num" value="{{ group.grouper }}">
+                                <input type="hidden" name="proveedor_id" value="{{ first.co_cli }}">
+                                <input type="hidden" name="proveedor_nombre" value="{{ first.prov_des }}">
+                                <input type="hidden" name="fecha_orden" value="{{ first.fec_emis }}">
+                                <input type="hidden" name="status" value="{{ first.status }}">
+                                <input type="hidden" name="producto_codigo" id="productoCodigoHidden{{ group.grouper }}">
+                            </div>
+                            <div class="modal-footer d-flex justify-content-between">
+                                <a href="http://192.168.0.60/romana" class="b-btn b-btn-outline" target="_blank">
+                                    <i class="fas fa-external-link-alt"></i> Ir a Báscula
+                                </a>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="b-btn b-btn-outline" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="b-btn b-btn-primary">
+                                        <i class="fas fa-check"></i> Confirmar Carga
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Historial de Ingresos de Materia Prima -->
+    <div class="b-table-container">
+        <div class="b-table-top">
+            <div>
+                <h3 class="b-table-title">Historial de Ingresos Registrados</h3>
+                <p class="b-table-subtitle">Auditoría cronológica de cargas de materia prima ingresadas</p>
+            </div>
+
+            <!-- Filtro de historial -->
+            <form method="get" action="" class="b-search-pill" style="max-width: 320px;">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" name="buscar_historial" placeholder="Filtrar por orden, placa..." value="{{ request.GET.buscar_historial|default:'' }}">
+                {% if request.GET.buscar_historial %}
+                <a href="?" class="btn-clear text-muted position-absolute" style="right: 1rem; text-decoration: none;">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="b-table">
+                <thead>
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>N° Orden</th>
+                        <th>Placa del Vehículo</th>
+                        <th>Descripción de Carga</th>
+                        <th class="text-end">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if historial and historial|length > 0 %}
+                        {% for h in historial %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ h.fecha_hora|date:"d/m/Y" }}</div>
+                                <div class="small text-muted">{{ h.fecha_hora|date:"H:i:s" }}</div>
+                            </td>
+                            <td>
+                                <span class="badge-order-pill">#{{ h.numero_orden }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-truck text-muted"></i>
+                                    <span class="fw-semibold">{{ h.placa_vehiculo }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-medium">{{ h.descripcion|default:"Carga General" }}</div>
+                            </td>
+                            <td class="text-end">
+                                <span class="status-pill status-processed">
+                                    <i class="fas fa-check-circle"></i> Registrado
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="fas fa-clipboard-check fs-1 d-block mb-3 opacity-25"></i>
+                                    <h5>No hay registros en el historial</h5>
+                                    <p class="small mb-0">Los ingresos procesados aparecerán listados aquí.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación Historial -->
+        {% if historial_paginator.num_pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-end">
+            <nav aria-label="Historial paginación">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if historial_has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ historial_previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">&laquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                    {% endif %}
+                    {% for num in historial_paginator.page_range %}
+                        {% if num == historial_page %}
+                            <li class="page-item active"><span class="page-link bg-dark-teal border-0">{{ num }}</span></li>
+                        {% elif num >= historial_page|add:'-2' and num <= historial_page|add:'2' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if historial_has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ historial_next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">&raquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Autocompletado optimizado
+function setupAutocomplete(inputId, listId, url, displayFn, valueFn) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    if (!input || !list) return;
+
+    input.addEventListener('input', function() {
+        const q = input.value;
+        if (q.length < 2) {
+            list.innerHTML = '';
             return;
         }
-        var statusCond = document.getElementById('statusCondSwitch')?.checked ? '1' : '';
-        if (statusCond === '1') {
-            var modal = new bootstrap.Modal(document.getElementById(modalId));
-            modal.show();
-        } else {
-            if (status == '2' || status == 2) {
-                showToast("Esta orden ya fue ingresada.", "warning");
-            } else {
-                var modal = new bootstrap.Modal(document.getElementById(modalId));
-                modal.show();
-            }
-        }
-    }
-
-    // Autocomplete helper
-    function setupAutocomplete(inputId, listId, url, displayFn, valueFn) {
-        const input = document.getElementById(inputId);
-        const list = document.getElementById(listId);
-        if (!input || !list) return;
-        input.addEventListener('input', function() {
-            const q = input.value;
-            if (q.length < 2) {
+        fetch(url + '?q=' + encodeURIComponent(q))
+            .then(resp => resp.json())
+            .then(function(data) {
                 list.innerHTML = '';
-                return;
-            }
-            fetch(url + '?q=' + encodeURIComponent(q))
-                .then(resp => resp.json())
-                .then(function(data) {
-                    list.innerHTML = '';
+                if (data && data.length > 0) {
                     data.forEach(function(item) {
                         const el = document.createElement('button');
                         el.type = 'button';
@@ -359,77 +428,60 @@
                         };
                         list.appendChild(el);
                     });
-                });
-        });
-        // Cierra el autocompletar si se hace click fuera
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !list.contains(e.target)) {
-                list.innerHTML = '';
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Limpiar el formulario de consulta sin recargar la página
-        var btnLimpiar = document.getElementById('btnLimpiar');
-        var consultaForm = document.getElementById('consultaForm');
-        if (btnLimpiar && consultaForm) {
-            btnLimpiar.addEventListener('click', function(e) {
-                e.preventDefault();
-                consultaForm.reset();
+                }
             });
-        }
-        if (consultaForm) {
-            consultaForm.reset();
-        }
-
-        // Inicializar autocompletes para los campos del modal general por orden
-        {% if registros %}
-            {% regroup registros by fact_num as fact_groups %}
-            {% for group in fact_groups %}
-                setupAutocomplete('empresaRifInput{{ group.grouper }}', 'empresaRifList{{ group.grouper }}', '{% url "autocomplete_empresa" %}', 
-                    function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
-                setupAutocomplete('conductorInput{{ group.grouper }}', 'conductorList{{ group.grouper }}', '{% url "autocomplete_conductor" %}', 
-                    function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
-                setupAutocomplete('vehiculoInput{{ group.grouper }}', 'vehiculoList{{ group.grouper }}', '{% url "autocomplete_chuto" %}', 
-                    function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-                setupAutocomplete('remolqueInput{{ group.grouper }}', 'remolqueList{{ group.grouper }}', '{% url "autocomplete_tanque" %}', 
-                    function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-                setupAutocomplete('destinoInput{{ group.grouper }}', 'destinoList{{ group.grouper }}', '{% url "autocomplete_destino" %}', 
-                    function(item) { return item.nombre; }, function(item) { return item.nombre; });
-
-                // Al cambiar el producto seleccionado, actualizar el campo oculto producto_codigo
-                var select = document.getElementById('productoSelect{{ group.grouper }}');
-                var productoCodigoHidden = document.getElementById('productoCodigoHidden{{ group.grouper }}');
-                function setProductoCodigo() {
-                    if (!select || !productoCodigoHidden) return;
-                    var selected = select.options[select.selectedIndex];
-                    var productoId = selected.value;
-                    var productoCodigo = '';
-                    {% for r in group.list %}
-                        if (productoId == '{{ r.producto_id }}') {
-                            productoCodigo = '{{ r.Producto_Codigo|default_if_none:"" }}';
-                        }
-                    {% endfor %}
-                    productoCodigoHidden.value = productoCodigo;
-                }
-                if (select && productoCodigoHidden) {
-                    select.addEventListener('change', setProductoCodigo);
-                    // Inicializar el valor al abrir el modal
-                    var modal = document.getElementById('validarModal{{ group.grouper }}');
-                    if (modal) {
-                        modal.addEventListener('show.bs.modal', function() {
-                            // Si no hay selección, selecciona la primera opción válida
-                            if (select.selectedIndex <= 0 && select.options.length > 1) {
-                                select.selectedIndex = 1;
-                            }
-                            setProductoCodigo();
-                        });
-                    }
-                }
-            {% endfor %}
-        {% endif %}
     });
-    </script>
 
-    {% endblock %}
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !list.contains(e.target)) {
+            list.innerHTML = '';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% if registros %}
+        {% regroup registros by fact_num as fact_groups %}
+        {% for group in fact_groups %}
+            setupAutocomplete('empresaRifInput{{ group.grouper }}', 'empresaRifList{{ group.grouper }}', '{% url "autocomplete_empresa" %}', 
+                function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
+            setupAutocomplete('conductorInput{{ group.grouper }}', 'conductorList{{ group.grouper }}', '{% url "autocomplete_conductor" %}', 
+                function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
+            setupAutocomplete('vehiculoInput{{ group.grouper }}', 'vehiculoList{{ group.grouper }}', '{% url "autocomplete_chuto" %}', 
+                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+            setupAutocomplete('remolqueInput{{ group.grouper }}', 'remolqueList{{ group.grouper }}', '{% url "autocomplete_tanque" %}', 
+                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+            setupAutocomplete('destinoInput{{ group.grouper }}', 'destinoList{{ group.grouper }}', '{% url "autocomplete_destino" %}', 
+                function(item) { return item.nombre; }, function(item) { return item.nombre; });
+
+            var select = document.getElementById('productoSelect{{ group.grouper }}');
+            var productoCodigoHidden = document.getElementById('productoCodigoHidden{{ group.grouper }}');
+            function setProductoCodigo() {
+                if (!select || !productoCodigoHidden) return;
+                var selected = select.options[select.selectedIndex];
+                var productoId = selected.value;
+                var productoCodigo = '';
+                {% for r in group.list %}
+                    if (productoId == '{{ r.producto_id }}') {
+                        productoCodigo = '{{ r.Producto_Codigo|default_if_none:"" }}';
+                    }
+                {% endfor %}
+                productoCodigoHidden.value = productoCodigo;
+            }
+            if (select && productoCodigoHidden) {
+                select.addEventListener('change', setProductoCodigo);
+                var modal = document.getElementById('validarModal{{ group.grouper }}');
+                if (modal) {
+                    modal.addEventListener('show.bs.modal', function() {
+                        if (select.selectedIndex <= 0 && select.options.length > 1) {
+                            select.selectedIndex = 1;
+                        }
+                        setProductoCodigo();
+                    });
+                }
+            }
+        {% endfor %}
+    {% endif %}
+});
+</script>
+{% endblock %}

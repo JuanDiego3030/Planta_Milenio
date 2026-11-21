@@ -1,1 +1,9 @@
 venv/
+*.sqlite3
+*.sqlite
+*.db
+db.sqlite3
+planta.sqlite3
+
+__pycache__/
+*.pyc

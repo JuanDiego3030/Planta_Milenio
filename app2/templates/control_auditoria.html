@@ -1,283 +1,368 @@
-    {% extends 'base.html' %}
-     {% load static %}
-   
+{% extends 'base.html' %}
+{% load static %}
 
-    {% block title %}Planta Milenio{% endblock %}
+{% block title %}Auditoría de Transportes | AgroTrack{% endblock %}
 
-    {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <style>
-        /* Mantener el footer en la parte inferior */
-        html, body { height: 100%; }
-        .main-content { flex: 1 0 auto; }
-        .card-header.busqueda-header {
-            background: var(--primary-dark);
-            color: #fff !important;
-            font-size: 1.2rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            border-radius: 0.5rem 0.5rem 0 0;
-        }
-        .card-header.busqueda-header .fw-bold,
-        .card-header.busqueda-header .small,
-        .card-header.busqueda-header strong { color: #fff !important; }
-        .btn-cargar-datos { background: #4da3ff !important; color: #fff !important; border: none; }
-        .btn-cargar-datos:hover, .btn-cargar-datos:focus { background: #339cff !important; color: #fff !important; }
-        /* Asegura que el modal esté por encima del navbar */
-        .modal {
-            z-index: 2000;
-        }
-        .modal-backdrop {
-            z-index: 1999;
-        }
-    </style>
-    {% endblock %}
+{% block content %}
+<div class="d-flex flex-column gap-4">
+    <!-- Header & KPIs -->
+    <div>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <div>
+                <h2 class="welcome-title" style="font-size: 1.6rem;">Auditoría de Transportes y Romana</h2>
+                <p class="welcome-subtitle">Supervisión, corrección y auditoría de pesajes y viajes en romana</p>
+            </div>
+            
+            <!-- Buscador rápido -->
+            <form method="get" action="" class="b-search-pill">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" name="buscar" placeholder="Buscar orden, placa, chofer..." value="{{ buscar|default:'' }}">
+                {% if buscar %}
+                <a href="{% url 'auditoria' %}" class="btn-clear text-muted position-absolute" style="right: 1rem; text-decoration: none;">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </form>
+        </div>
 
-    {% block content %}
-    <section class="section section-light main-content" style="padding-top: 0;">
-        <div class="container">
-            <h2 class="section-title" style="font-size:2rem;">Auditoría de Transportes</h2>
-            {% if messages %}
-            <div aria-live="polite" aria-atomic="true" class="position-relative">
-                <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
-                    {% for message in messages %}
-                    <div class="toast align-items-center text-bg-{{ message.tags }} border-0 show" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
-                        <div class="d-flex">
-                            <div class="toast-body">
-                                {{ message }}
-                            </div>
-                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                        </div>
-                    </div>
-                    {% endfor %}
+        <!-- Metric KPI Cards -->
+        <div class="metric-row">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-label">Registros Romana</span>
+                    <span class="metric-badge badge-mint"><i class="fas fa-database"></i> SQL Server</span>
+                </div>
+                <div class="metric-value">{{ registros|length }}</div>
+                <div class="metric-footer">
+                    <i class="fas fa-scale-balanced text-muted"></i>
+                    <span>Cargas en cola de pesada</span>
                 </div>
             </div>
-            {% endif %}
-                        <!-- Buscador grande arriba de la tarjeta -->
-                        <form method="get" action="" class="row g-3 align-items-end mb-3">
-                            <div class="col-md-4 col-12">
-                                <input type="text" name="buscar" class="form-control" placeholder="Buscar por orden, placa o conductor" value="{{ buscar|default:'' }}">
-                            </div>
-                            <div class="col-md-2 col-6">
-                                <button type="submit" class="btn btn-outline-primary w-100">Buscar</button>
-                            </div>
-                            <div class="col-md-2 col-6">
-                                <a href="?" class="btn btn-outline-secondary w-100">Limpiar</a>
-                            </div>
-                        </form>
-                        <div class="card shadow-sm">
-                                <div class="card-header busqueda-header d-flex flex-wrap align-items-center justify-content-between">
-                                        <strong>Registros de Romana</strong>
-                                </div>
-                <div class="card-body p-0">
-                                        <div class="table-responsive">
-                        <table class="table table-striped mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Número de orden</th>
-                                    <th>Vehículo</th>
-                                    <th>Conductor</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for r in registros %}
-                                <tr>
-                                    <td>{{ r.Orden }}</td>
-                                    <td>{{ r.Vehiculo_Placa }}</td>
-                                    <td>{{ r.Conductor_Nombre }} {{ r.Conductor_Apellido }}</td>
-                                    <td>
-                                        <!-- Botón para abrir modal de edición -->
-                                            {# Eliminación deshabilitada #}
-                                            {% if not r.Pesada_Id %}
-                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editarModal{{ r.Orden_Transporte_Id }}">
-                                                    Editar
-                                                </button>
-                                            {% else %}
-                                                <span class="text-muted">No editable</span>
-                                            {% endif %}
-                                    </td>
-                                </tr>
-                                <!-- Modal de edición para este registro -->
-                                {% if not r.Pesada_Id %}
-                                <div class="modal fade" id="editarModal{{ r.Orden_Transporte_Id }}" tabindex="-1" aria-labelledby="editarModalLabel{{ r.Orden_Transporte_Id }}" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="editarModalLabel{{ r.Orden_Transporte_Id }}">Editar registro</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                                            </div>
-                                            <form method="post" action="">
-                                                {% csrf_token %}
-                                                <div class="modal-body">
-                                                    <p>Solo puede modificar los siguientes datos:</p>
-                                                    <div class="mb-2">
-                                                        <label class="form-label">RIF de la Empresa de Transporte</label>
-                                                        <input type="text" name="campo_Empresa_Rif" value="{{ r.Empresa_Rif }}" class="form-control" id="empresaRifInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
-                                                        <div class="list-group position-absolute w-100" id="empresaRifList{{ r.Orden_Transporte_Id }}"></div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label">Cédula del Conductor</label>
-                                                        <input type="text" name="campo_Conductor_Cedula" value="{{ r.Conductor_Cedula }}" class="form-control" id="conductorInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
-                                                        <div class="list-group position-absolute w-100" id="conductorList{{ r.Orden_Transporte_Id }}"></div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label">Placa del Vehículo</label>
-                                                        <input type="text" name="campo_Vehiculo_Placa" value="{{ r.Vehiculo_Placa }}" class="form-control" id="vehiculoInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
-                                                        <div class="list-group position-absolute w-100" id="vehiculoList{{ r.Orden_Transporte_Id }}"></div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label">Placa del Remolque</label>
-                                                        <input type="text" name="campo_Vehiculo_Remolque_Placa" value="{{ r.Vehiculo_Remolque_Placa }}" class="form-control" id="remolqueInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
-                                                        <div class="list-group position-absolute w-100" id="remolqueList{{ r.Orden_Transporte_Id }}"></div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label">Origen</label>
-                                                        <input type="text" name="campo_Destino_Nombre" value="{{ r.Destino_Nombre }}" class="form-control" id="destinoInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
-                                                        <div class="list-group position-absolute w-100" id="destinoList{{ r.Orden_Transporte_Id }}"></div>
-                                                    </div>
-                                                    <div class="mb-2">
-                                                        <label class="form-label">Producto</label>
-                                                        <select class="form-select" id="productoSelect{{ r.Orden_Transporte_Id }}" name="campo_Producto_Id" required>
-                                                            <option value="" selected disabled>Seleccione...</option>
-                                                            {% for p in r.productos_orden %}
-                                                                <option value="{{ p.id }}" data-codigo="{{ p.codigo }}" {% if p.codigo == r.Producto_Codigo or p.id == r.Producto_Id %}selected{% endif %}>
-                                                                    {{ p.nombre }} (Código: {{ p.codigo }})
-                                                                </option>
-                                                            {% endfor %}
-                                                        </select>
-                                                        <input type="hidden" name="campo_Producto_Codigo" id="productoCodigoHidden{{ r.Orden_Transporte_Id }}" value="{{ r.Producto_Codigo }}">
-                                                    </div>
-                                                    <!-- Datos ocultos para mantener integridad -->
-                                                    <input type="hidden" name="registro_id" value="{{ r.Orden_Transporte_Id }}">
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                                    <button type="submit" name="editar_registro" class="btn btn-primary">Guardar cambios</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        <!-- Paginación de registros de Romana -->
-                        {% if paginator.num_pages > 1 %}
-                        <nav aria-label="Paginación registros Romana" class="mt-2">
-                            <ul class="pagination justify-content-end mb-0">
-                                {% if page_obj.has_previous %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Anterior">
-                                            <span aria-hidden="true">&laquo;</span>
-                                        </a>
-                                    </li>
-                                {% else %}
-                                    <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-                                {% endif %}
-                                {% for num in paginator.page_range %}
-                                    {% if num == page_obj.number %}
-                                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                                    {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-                                        </li>
-                                    {% endif %}
-                                {% endfor %}
-                                {% if page_obj.has_next %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Siguiente">
-                                            <span aria-hidden="true">&raquo;</span>
-                                        </a>
-                                    </li>
-                                {% else %}
-                                    <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-                                {% endif %}
-                            </ul>
-                        </nav>
-                        {% endif %}
-                                    <th>Fecha y hora</th>
-                                    <th>Número de orden</th>
-                                    <th>Placa del vehículo</th>
-                                    <th>Descripción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% if historial and historial|length > 0 %}
-                                    {% for h in historial %}
-                                    <tr>
-                                        <td>{{ h.fecha_hora|date:"m/d/Y H:i:s" }}</td>
-                                        <td>{{ h.numero_orden }}</td>
-                                        <td>{{ h.placa_vehiculo }}</td>
-                                        <td>{{ h.descripcion }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="4" class="text-center text-muted">No hay ingresos registrados.</td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- PAGINACIÓN DEL HISTORIAL -->
-                    {% if historial_paginator.num_pages > 1 %}
-                    <nav aria-label="Historial paginación" class="mt-2">
-                        <ul class="pagination justify-content-end mb-0">
-                            {% if historial_has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ historial_previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Anterior">
-                                        <span aria-hidden="true">&laquo;</span>
-                                    </a>
-                                </li>
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-                            {% endif %}
-                            {% for num in historial_paginator.page_range %}
-                                {% if num == historial_page %}
-                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                                {% elif num >= historial_page|add:'-2' and num <= historial_page|add:'2' %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ num }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">{{ num }}</a>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                            {% if historial_has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ historial_next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Siguiente">
-                                        <span aria-hidden="true">&raquo;</span>
-                                    </a>
-                                </li>
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                    {% endif %}
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-label">Historial Auditado</span>
+                    <span class="metric-badge badge-mint"><i class="fas fa-clock-rotate-left"></i> Historial</span>
+                </div>
+                <div class="metric-value">{{ historial|length }}</div>
+                <div class="metric-footer">
+                    <i class="fas fa-truck-ramp-box text-muted"></i>
+                    <span>Registros archivados en planta</span>
+                </div>
+            </div>
+
+            <!-- Dark Teal Hero Card -->
+            <div class="metric-card metric-card-hero">
+                <div class="metric-header">
+                    <span class="metric-label">Seguridad de Datos</span>
+                    <span class="metric-badge"><i class="fas fa-lock"></i> Integridad</span>
+                </div>
+                <div class="metric-value" style="font-size: 1.45rem;">Auditoría Activa</div>
+                <div class="metric-footer">
+                    <span class="pulse-dot me-1"></span>
+                    <span>Trazabilidad completa de operaciones</span>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
 
-    {% endblock %}
+    <!-- Tabla 1: Registros de Romana -->
+    <div class="b-table-container">
+        <div class="b-table-top">
+            <div>
+                <h3 class="b-table-title">Registros Activos en Romana</h3>
+                <p class="b-table-subtitle">Vehículos pendientes o procesados en báscula</p>
+            </div>
+            {% if buscar %}
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-secondary">Búsqueda: "{{ buscar }}"</span>
+                <a href="{% url 'auditoria' %}" class="b-btn b-btn-outline b-btn-sm">Limpiar</a>
+            </div>
+            {% endif %}
+        </div>
 
-    {% block extra_scripts %}
-    <script>
-    function setupAutocomplete(inputId, listId, url, displayFn, valueFn) {
-        const input = document.getElementById(inputId);
-        const list = document.getElementById(listId);
-        if (!input || !list) return;
-        input.addEventListener('input', function() {
-            const q = input.value;
-            if (q.length < 2) {
+        <div class="table-responsive">
+            <table class="b-table">
+                <thead>
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Vehículo / Chuto</th>
+                        <th>Conductor</th>
+                        <th>Estado Pesada</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in registros %}
+                    <tr>
+                        <td>
+                            <span class="badge-order-pill">#{{ r.Orden }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-truck text-muted"></i>
+                                <span class="fw-semibold">{{ r.Vehiculo_Placa }}</span>
+                                {% if r.Vehiculo_Remolque_Placa %}
+                                    <span class="text-muted small">({{ r.Vehiculo_Remolque_Placa }})</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ r.Conductor_Nombre }} {{ r.Conductor_Apellido }}</div>
+                            <small class="text-muted">{{ r.Conductor_Cedula|default:"" }}</small>
+                        </td>
+                        <td>
+                            {% if not r.Pesada_Id %}
+                                <span class="status-pill status-pending"><i class="fas fa-hourglass-start"></i> Pendiente Pesada</span>
+                            {% else %}
+                                <span class="status-pill status-processed"><i class="fas fa-check"></i> Pesado (#{{ r.Pesada_Id }})</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if not r.Pesada_Id %}
+                                <button type="button" class="b-btn b-btn-sm b-btn-primary" data-bs-toggle="modal" data-bs-target="#editarModal{{ r.Orden_Transporte_Id }}">
+                                    <i class="fas fa-edit me-1"></i> Editar
+                                </button>
+                            {% else %}
+                                <span class="text-muted small fst-italic">Bloqueado tras pesaje</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal de Edición de Registro de Transporte (Bankio Style) -->
+                    {% if not r.Pesada_Id %}
+                    <div class="modal fade" id="editarModal{{ r.Orden_Transporte_Id }}" tabindex="-1" aria-labelledby="editarModalLabel{{ r.Orden_Transporte_Id }}" aria-hidden="true" style="z-index: 2000;">
+                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                            <div class="modal-content b-modal">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editarModalLabel{{ r.Orden_Transporte_Id }}">
+                                        <i class="fas fa-pen-to-square me-2"></i>Editar Registro - Orden #{{ r.Orden }}
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                </div>
+                                <form method="post" action="">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <div class="alert alert-info py-2 small mb-3">
+                                            <i class="fas fa-info-circle me-1"></i> Modifique los datos de transporte únicamente si hubo un error en la carga inicial.
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-md-6 position-relative">
+                                                <label class="b-form-label">RIF Empresa de Transporte</label>
+                                                <div class="b-input-group">
+                                                    <i class="fas fa-building b-input-icon"></i>
+                                                    <input type="text" name="campo_Empresa_Rif" value="{{ r.Empresa_Rif }}" class="b-form-control" id="empresaRifInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                </div>
+                                                <div class="autocomplete-dropdown list-group position-absolute w-100" id="empresaRifList{{ r.Orden_Transporte_Id }}"></div>
+                                            </div>
+
+                                            <div class="col-md-6 position-relative">
+                                                <label class="b-form-label">Cédula del Conductor</label>
+                                                <div class="b-input-group">
+                                                    <i class="fas fa-id-card b-input-icon"></i>
+                                                    <input type="text" name="campo_Conductor_Cedula" value="{{ r.Conductor_Cedula }}" class="b-form-control" id="conductorInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                </div>
+                                                <div class="autocomplete-dropdown list-group position-absolute w-100" id="conductorList{{ r.Orden_Transporte_Id }}"></div>
+                                            </div>
+
+                                            <div class="col-md-6 position-relative">
+                                                <label class="b-form-label">Placa del Vehículo</label>
+                                                <div class="b-input-group">
+                                                    <i class="fas fa-truck b-input-icon"></i>
+                                                    <input type="text" name="campo_Vehiculo_Placa" value="{{ r.Vehiculo_Placa }}" class="b-form-control" id="vehiculoInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                </div>
+                                                <div class="autocomplete-dropdown list-group position-absolute w-100" id="vehiculoList{{ r.Orden_Transporte_Id }}"></div>
+                                            </div>
+
+                                            <div class="col-md-6 position-relative">
+                                                <label class="b-form-label">Placa del Remolque</label>
+                                                <div class="b-input-group">
+                                                    <i class="fas fa-trailer b-input-icon"></i>
+                                                    <input type="text" name="campo_Vehiculo_Remolque_Placa" value="{{ r.Vehiculo_Remolque_Placa }}" class="b-form-control" id="remolqueInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                </div>
+                                                <div class="autocomplete-dropdown list-group position-absolute w-100" id="remolqueList{{ r.Orden_Transporte_Id }}"></div>
+                                            </div>
+
+                                            <div class="col-md-6 position-relative">
+                                                <label class="b-form-label">Origen / Procedencia</label>
+                                                <div class="b-input-group">
+                                                    <i class="fas fa-location-dot b-input-icon"></i>
+                                                    <input type="text" name="campo_Destino_Nombre" value="{{ r.Destino_Nombre }}" class="b-form-control" id="destinoInput{{ r.Orden_Transporte_Id }}" autocomplete="off">
+                                                </div>
+                                                <div class="autocomplete-dropdown list-group position-absolute w-100" id="destinoList{{ r.Orden_Transporte_Id }}"></div>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="b-form-label">Producto Asociado</label>
+                                                <select class="b-form-control" id="productoSelect{{ r.Orden_Transporte_Id }}" name="campo_Producto_Id" required>
+                                                    <option value="" selected disabled>Seleccione...</option>
+                                                    {% for p in r.productos_orden %}
+                                                        <option value="{{ p.id }}" data-codigo="{{ p.codigo }}" {% if p.codigo == r.Producto_Codigo or p.id == r.Producto_Id %}selected{% endif %}>
+                                                            {{ p.nombre }} (Código: {{ p.codigo }})
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                                <input type="hidden" name="campo_Producto_Codigo" id="productoCodigoHidden{{ r.Orden_Transporte_Id }}" value="{{ r.Producto_Codigo }}">
+                                            </div>
+                                        </div>
+
+                                        <input type="hidden" name="registro_id" value="{{ r.Orden_Transporte_Id }}">
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="b-btn b-btn-outline" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" name="editar_registro" class="b-btn b-btn-primary">
+                                            <i class="fas fa-save me-1"></i> Guardar Cambios
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fas fa-scale-balanced fs-1 d-block mb-3 opacity-25"></i>
+                            No hay registros de romana que coincidan con la búsqueda.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación Romana -->
+        {% if paginator.num_pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-end">
+            <nav aria-label="Paginación registros Romana">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if buscar %}&buscar={{ buscar }}{% endif %}">&laquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                    {% endif %}
+                    {% for num in paginator.page_range %}
+                        {% if num == page_obj.number %}
+                            <li class="page-item active"><span class="page-link bg-dark-teal border-0">{{ num }}</span></li>
+                        {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if buscar %}&buscar={{ buscar }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if buscar %}&buscar={{ buscar }}{% endif %}">&raquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tabla 2: Historial de Ingresos Registrados -->
+    <div class="b-table-container">
+        <div class="b-table-top">
+            <div>
+                <h3 class="b-table-title">Historial General de Ingresos</h3>
+                <p class="b-table-subtitle">Auditoría completa de entradas procesadas</p>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="b-table">
+                <thead>
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>N° Orden</th>
+                        <th>Placa del Vehículo</th>
+                        <th>Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if historial and historial|length > 0 %}
+                        {% for h in historial %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ h.fecha_hora|date:"d/m/Y" }}</div>
+                                <div class="small text-muted">{{ h.fecha_hora|date:"H:i:s" }}</div>
+                            </td>
+                            <td><span class="badge-order-pill">#{{ h.numero_orden }}</span></td>
+                            <td>
+                                <div class="fw-semibold"><i class="fas fa-truck me-1 text-muted"></i>{{ h.placa_vehiculo }}</div>
+                            </td>
+                            <td>{{ h.descripcion|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">No hay ingresos registrados en el historial.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación Historial -->
+        {% if historial_paginator.num_pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-end">
+            <nav aria-label="Historial paginación">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if historial_has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ historial_previous_page_number }}">&laquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                    {% endif %}
+                    {% for num in historial_paginator.page_range %}
+                        {% if num == historial_page %}
+                            <li class="page-item active"><span class="page-link bg-dark-teal border-0">{{ num }}</span></li>
+                        {% elif num >= historial_page|add:'-2' and num <= historial_page|add:'2' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if historial_has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ historial_next_page_number }}">&raquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function setupAutocomplete(inputId, listId, url, displayFn, valueFn) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    if (!input || !list) return;
+
+    input.addEventListener('input', function() {
+        const q = input.value;
+        if (q.length < 2) {
+            list.innerHTML = '';
+            return;
+        }
+        fetch(url + '?q=' + encodeURIComponent(q))
+            .then(resp => resp.json())
+            .then(function(data) {
                 list.innerHTML = '';
-                return;
-            }
-            fetch(url + '?q=' + encodeURIComponent(q))
-                .then(resp => resp.json())
-                .then(function(data) {
-                    list.innerHTML = '';
+                if (data && data.length > 0) {
                     data.forEach(function(item) {
                         const el = document.createElement('button');
                         el.type = 'button';
@@ -289,37 +374,39 @@
                         };
                         list.appendChild(el);
                     });
-                });
-        });
-        document.addEventListener('click', function(e) {
-            if (!input.contains(e.target) && !list.contains(e.target)) {
-                list.innerHTML = '';
-            }
-        });
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        {% for r in registros %}
-            setupAutocomplete('empresaRifInput{{ r.Orden_Transporte_Id }}', 'empresaRifList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_empresa" %}', 
-                function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
-            setupAutocomplete('conductorInput{{ r.Orden_Transporte_Id }}', 'conductorList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_conductor" %}', 
-                function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
-            setupAutocomplete('vehiculoInput{{ r.Orden_Transporte_Id }}', 'vehiculoList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_chuto" %}', 
-                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-            setupAutocomplete('remolqueInput{{ r.Orden_Transporte_Id }}', 'remolqueList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_tanque" %}', 
-                function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
-            setupAutocomplete('destinoInput{{ r.Orden_Transporte_Id }}', 'destinoList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_destino" %}', 
-                function(item) { return item.nombre; }, function(item) { return item.nombre; });
-            // Actualizar campo oculto producto_codigo al cambiar el select
-            var select = document.getElementById('productoSelect{{ r.Orden_Transporte_Id }}');
-            var productoCodigoHidden = document.getElementById('productoCodigoHidden{{ r.Orden_Transporte_Id }}');
-            if (select && productoCodigoHidden) {
-                select.addEventListener('change', function() {
-                    var selected = select.options[select.selectedIndex];
-                    productoCodigoHidden.value = selected.getAttribute('data-codigo');
-                });
-            }
-        {% endfor %}
+                }
+            });
     });
-    </script>
 
-    {% endblock %}
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !list.contains(e.target)) {
+            list.innerHTML = '';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% for r in registros %}
+        setupAutocomplete('empresaRifInput{{ r.Orden_Transporte_Id }}', 'empresaRifList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_empresa" %}', 
+            function(item) { return item.rif + ' - ' + item.nombre; }, function(item) { return item.rif; });
+        setupAutocomplete('conductorInput{{ r.Orden_Transporte_Id }}', 'conductorList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_conductor" %}', 
+            function(item) { return item.cedula + ' - ' + item.nombre + ' ' + (item.apellido || ''); }, function(item) { return item.cedula; });
+        setupAutocomplete('vehiculoInput{{ r.Orden_Transporte_Id }}', 'vehiculoList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_chuto" %}', 
+            function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+        setupAutocomplete('remolqueInput{{ r.Orden_Transporte_Id }}', 'remolqueList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_tanque" %}', 
+            function(item) { return item.placa + ' - ' + item.nombre; }, function(item) { return item.placa; });
+        setupAutocomplete('destinoInput{{ r.Orden_Transporte_Id }}', 'destinoList{{ r.Orden_Transporte_Id }}', '{% url "autocomplete_destino" %}', 
+            function(item) { return item.nombre; }, function(item) { return item.nombre; });
+
+        var select = document.getElementById('productoSelect{{ r.Orden_Transporte_Id }}');
+        var productoCodigoHidden = document.getElementById('productoCodigoHidden{{ r.Orden_Transporte_Id }}');
+        if (select && productoCodigoHidden) {
+            select.addEventListener('change', function() {
+                var selected = select.options[select.selectedIndex];
+                productoCodigoHidden.value = selected.getAttribute('data-codigo');
+            });
+        }
+    {% endfor %}
+});
+</script>
+{% endblock %}
