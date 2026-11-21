@@ -47,8 +47,8 @@ flowchart TD
     Views <--> CRUD
     Views <--> Models
     Models <-->|ORM default| DB_Local
-    CRUD <-->|SQL Raw (connections['sqlserver'])| DB_Profit
-    CRUD <-->|SQL Raw / SP (connections['ceres_romana'])| DB_Romana
+    CRUD <-->|SQL Raw - Profit Plus| DB_Profit
+    CRUD <-->|SQL Raw y SP - Romana| DB_Romana
     DB_Romana <--> Balanza
 ```
 
@@ -92,7 +92,7 @@ sequenceDiagram
 
     Operador->>UI: Clic en "Confirmar Carga"
     UI->>Django: POST /control/ con datos de orden y transporte
-    Django->>Ceres: EXEC [dbo].[Orden_Profit_Transporte_Insert]
+    Django->>Ceres: EXEC Orden_Profit_Transporte_Insert
     Django->>Django: Guarda registro en SQLite local (Historial)
     Django-->>UI: Notificación Toast: "Datos cargados correctamente"
     
